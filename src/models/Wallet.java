@@ -1,0 +1,27 @@
+package models;
+
+public abstract class Wallet {
+    protected String name;
+    protected double balance;
+
+    public Wallet(String name, double initialBalance) {
+        this.name = name;
+        this.balance = Math.max(0, initialBalance);
+    }
+
+    public void deposit(double amount) {
+        if (amount > 0) {
+            this.balance += amount;
+        }
+    }
+
+    public void withdraw(double amount) {
+        if (amount > 0 && this.balance >= amount) {
+            this.balance -= amount;
+        } else {
+            System.out.println("Lỗi: Số dư của bạn không đủ!");
+        }
+    }
+    public abstract WalletType getWalletType();
+}
+
