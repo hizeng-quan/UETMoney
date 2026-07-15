@@ -1,5 +1,7 @@
 package models;
 
+import enums.WalletType;
+
 public abstract class Wallet {
     protected String name;
     protected double balance;
@@ -22,6 +24,15 @@ public abstract class Wallet {
             System.out.println("Lỗi: Số dư của bạn không đủ!");
         }
     }
+
+    public String getName() {
+        return name;
+    }
+
+    public double getBalance() {
+        return balance;
+    }
+
     public abstract WalletType getWalletType();
 }
 

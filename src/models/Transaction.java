@@ -1,5 +1,7 @@
 package models;
 
+import enums.TransactionType;
+
 import java.time.LocalDate;
 
 public abstract class Transaction {
@@ -32,5 +34,17 @@ public abstract class Transaction {
 
     public double getAmount() {
         return amount;
+    }
+
+    public Category getCategory() {
+        return category;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public Wallet getWallet() {
+        return wallet;
     }
 }
