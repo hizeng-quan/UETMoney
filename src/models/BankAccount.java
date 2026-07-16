@@ -1,0 +1,50 @@
+package models;
+
+import enums.WalletType;
+
+public class BankAccount extends Wallet{
+    private String bankName;
+    private String accountNumber;
+
+    private static final double WITHDRAW_FEE = 1100.0;
+
+    public BankAccount(String name, double initialBalance, String bankName, String accountNumber) {
+        super(name, initialBalance);
+        this.bankName = bankName;
+        this.accountNumber = accountNumber;
+    }
+
+    @Override
+    public WalletType getWalletType() {
+        return WalletType.BANK;
+    }
+
+    @Override
+    public void withdraw(double amount) {
+        double totalDeduction = amount + WITHDRAW_FEE;
+
+        if (amount > 0 && this.balance > totalDeduction) {
+            this.balance -= totalDeduction;
+            System.out.printf("Đã rút %,.2f VND. Phí giao dịch: %,.2f VND. Số dư còn lại %,.2f VND\n",
+                    amount, WITHDRAW_FEE, this.balance);
+        } else {
+            System.out.println("Lỗi: số dư không đủ để rút và trả phí giao dịch");
+        }
+    }
+
+    public String getBankName() {
+        return bankName;
+    }
+
+    public void setBankName(String bankName) {
+        this.bankName = bankName;
+    }
+
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public void setAccountNumber(String accountNumber) {
+        this.accountNumber = accountNumber;
+    }
+}

@@ -7,7 +7,7 @@ import java.time.LocalDate;
 public class Expense extends Transaction{
     private String paymentMethod;
 
-    public Expense(String id, double amount, String note, LocalDate date, Category category, Wallet wallet) {
+    public Expense(String id, double amount, String note, LocalDate date, Category category, Wallet wallet, String paymentMethod) {
         super(id, amount, date, note, category, wallet);
         this.paymentMethod = paymentMethod;
     }
