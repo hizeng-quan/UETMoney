@@ -18,7 +18,7 @@ public class ExpenseManager {
     }
 
     /**
-     * ADD WALLETS AND CATEGORIES.
+     * Support Functions.
      */
 
     public void addWallet(Wallet wallet) {
@@ -30,6 +30,23 @@ public class ExpenseManager {
         categories.add(category);
     }
 
+    public Wallet getWalletByName(String name) {
+        for (Wallet w : wallets) {
+            if (w.getName().equalsIgnoreCase(name)) {
+                return  w;
+            }
+        }
+        return  null;
+    }
+
+    public Category getCategoryByName(String name) {
+        for (Category c : categories) {
+            if (c.getName().equalsIgnoreCase(name)) {
+                return c;
+            }
+        }
+        return null;
+    }
     /**
      * CRUD Functions.
      */
