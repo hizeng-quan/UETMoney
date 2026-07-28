@@ -5,16 +5,21 @@ import models.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Collections;
 
 public class ExpenseManager {
     private List<Transaction> transactions;
     private List<Wallet> wallets;
     private List<Category> categories;
+    private Map<Category, Budget> budgets;
 
     public ExpenseManager() {
         this.transactions = new ArrayList<>();
         this.wallets = new ArrayList<>();
         this.categories = new ArrayList<>();
+        this.budgets = new HashMap<>();
     }
 
     /**
@@ -47,6 +52,18 @@ public class ExpenseManager {
         }
         return null;
     }
+
+    public void displayWalletBalances() {
+        if (wallets.isEmpty()) {
+            System.out.println("Chưa có ví nào trong hệ thống");
+            return;
+        }
+
+        System.out.println("\n SỐ DƯ CHI TIẾT TỪNG VÍ");
+        for (Wallet w : wallets) {
+            System.out.printf("- Ví %s (%s): %,.2f VND\n", w.getName(), w.getWalletType(), w.getBalance());
+        }
+    }
     /**
      * CRUD Functions.
      */
@@ -59,6 +76,7 @@ public class ExpenseManager {
             wallet.deposit(t.getAmount());
         } else {
             wallet.withdraw(t.getAmount());
+            checkBudgetWarning(t);
         }
         System.out.println("Đã ghi nhận giao dịch và cập nhật số dư!");
     }
@@ -149,5 +167,109 @@ public class ExpenseManager {
         System.out.printf("Tổng thu: %,.2f VND\n", totalIncome);
         System.out.printf("Tổng chi: %,.2f VND\n", totalExpense);
         System.out.printf("Thực nhận: %,.2f VND\n", (totalIncome - totalExpense));
+    }
+
+    public void advancedStatistics(int month, int year) {
+        List<Expense> monthlyExpenses = new ArrayList<>();
+        Map<String, Double> categorySum = new HashMap<>();
+
+        for (Transaction t : transactions) {
+            if (t instanceof Expense && t.getDate().getMonthValue() == month && t.getDate().getYear() == year) {
+                Expense exp = (Expense) t;
+                monthlyExpenses.add(exp);
+
+                String catName = exp.getCategory().getName();
+                double amount = Math.abs(exp.getSignedAmount());
+                categorySum.put(catName, categorySum.getOrDefault(catName, 0.0) + amount);
+            }
+        }
+
+        if (monthlyExpenses.isEmpty()) {
+            System.out.println("Không có khoản chi tiêu nào trong tháng " + month + "/" + year);
+            return;
+        }
+
+        Expense maxExp = monthlyExpenses.get(0);
+        Expense minExp = monthlyExpenses.get(0);
+        for (Expense e : monthlyExpenses) {
+            if (Math.abs(e.getSignedAmount()) > Math.abs(maxExp.getSignedAmount())) maxExp = e;
+            if (Math.abs(e.getSignedAmount()) < Math.abs(minExp.getSignedAmount())) minExp = e;
+        }
+
+        System.out.printf("\nBÁO CÁO CHI TIẾT THÁNG %d/%d\n", month, year);
+        System.out.println("Khoản chi LỚN NHẤT:");
+        maxExp.printInfo();
+        System.out.println("Khoản chi NHỎ NHẤT:");
+        minExp.printInfo();
+
+        List<Map.Entry<String, Double>> sortedCats = new ArrayList<>(categorySum.entrySet());
+        sortedCats.sort((a, b) -> b.getValue().compareTo(a.getValue()));
+
+        System.out.println("\nDANH MỤC TỐN KÉM NHẤT:");
+        for (Map.Entry<String, Double> entry : sortedCats) {
+            System.out.printf("- %s: %,.0f VND\n", entry.getKey(), entry.getValue());
+        }
+    }
+
+    /**
+     * Budget Limit.
+     */
+
+    public void setBudget(Category category, double limit, enums.Period period) {
+        budgets.put(category, new Budget(category, limit, period));
+        System.out.printf("Đã đặt ngân sách tối đa cho '%s' là %,.0f VND (%s).\n", category.getName(), limit, period);
+    }
+
+    private void checkBudgetWarning(Transaction currentTx) {
+        Category category = currentTx.getCategory();
+        if (!budgets.containsKey(category)) return;
+
+        Budget budget = budgets.get(category);
+        double spent = 0;
+        LocalDate targetDate = currentTx.getDate();
+
+        for (Transaction t : transactions) {
+            if (t.getCategory().equals(category) && t.getSignedAmount() < 0) {
+                LocalDate txDate = t.getDate();
+                boolean inSamePeriod = false;
+
+                switch (budget.getPeriod()) {
+                    case DAILY:
+                        inSamePeriod = txDate.isEqual(targetDate);
+                        break;
+                    case WEEKLY:
+                        int txWeek = txDate.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+                        int targetWeek = targetDate.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+                        int txYear = txDate.get(java.time.temporal.IsoFields.WEEK_BASED_YEAR);
+                        int targetYear = targetDate.get(java.time.temporal.IsoFields.WEEK_BASED_YEAR);
+                        inSamePeriod = (txWeek == targetWeek && txYear == targetYear);
+                        break;
+                    case MONTHLY:
+                        inSamePeriod = (txDate.getMonthValue() == targetDate.getMonthValue()
+                                && txDate.getYear() == targetDate.getYear());
+                        break;
+                    case YEARLY:
+                        inSamePeriod = (txDate.getYear() == targetDate.getYear());
+                        break;
+                }
+
+                if (inSamePeriod) {
+                    spent += Math.abs(t.getSignedAmount());
+                }
+            }
+        }
+
+        if (budget.isExceeded(spent)) {
+            System.out.println("CẢNH BÁO NGÂN SÁCH");
+            System.out.printf("Bạn đã chi tiêu VƯỢT HẠN MỨC danh mục '%s'!\n", category.getName());
+
+            String periodStr = "";
+            if (budget.getPeriod() == enums.Period.DAILY) periodStr = "Ngày";
+            else if (budget.getPeriod() == enums.Period.WEEKLY) periodStr = "Tuần";
+            else if (budget.getPeriod() == enums.Period.MONTHLY) periodStr = "Tháng";
+            else if (budget.getPeriod() == enums.Period.YEARLY) periodStr = "Năm";
+
+            System.out.printf("Ngân sách (%s): %,.0f | Đã tiêu: %,.0f (Vượt lố %,.0f VND)\n", periodStr, budget.getLimit(), spent, (spent - budget.getLimit()));
+        }
     }
 }

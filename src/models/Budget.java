@@ -13,7 +13,7 @@ public class Budget {
         this.period = period;
     }
 
-    public boolean isExceeded(int spent) {
+    public boolean isExceeded(double spent) {
         return  spent > limit;
     }
 
