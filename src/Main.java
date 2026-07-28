@@ -39,39 +39,56 @@ public  class Main {
                     System.out.printf("TỔNG SỐ DƯ HIỆN TẠI: %,.2f VND\n", manager.calculateTotalBalance());
                     break;
                 case "5":
-                    try {
-                        System.out.println("Bạn muốn thống kê theo:");
-                        System.out.println("[1] Từng tháng");
-                        System.out.println("[2] Cả năm");
+                    System.out.println("Bạn muốn thống kê theo:");
+                    System.out.println("[1] Từng tháng");
+                    System.out.println("[2] Cả năm");
 
-                        String statChoice = scanner.nextLine();
-                        if (statChoice.equals("1")) {
-                            System.out.print("Nhập tháng: ");
-                            int month = Integer.parseInt(scanner.nextLine());
-                            System.out.print("Nhập năm: ");
-                            int year = Integer.parseInt(scanner.nextLine());
+                    String statChoice = scanner.nextLine();
+                    if (statChoice.equals("1")) {
+                        int month = 0;
+                        int year = 0;
+                        while (true) {
+                            try {
+                                System.out.print("Nhập tháng: ");
+                                month = Integer.parseInt(scanner.nextLine());
+                                System.out.print("Nhập năm: ");
+                                year = Integer.parseInt(scanner.nextLine());
+                                break;
+                            } catch (NumberFormatException e) {
+                                System.out.println("Lỗi: Vui lòng chỉ nhập số cho tháng và năm! Hãy nhập lại.");
+                            }
                             manager.monthlySummary(month, year);
-                        } else if (statChoice.equals("2")) {
-                            System.out.print("Nhập năm: ");
-                            int year = Integer.parseInt(scanner.nextLine());
-                            manager.yearlySummary(year);
-                        } else {
-                            System.out.println("Lựa chọn không hợp lệ, vui lòng nhập lại!");
                         }
-                    }   catch (NumberFormatException e) {
-                        System.out.println("Lỗi: Vui lòng chỉ nhập số cho tháng và năm!");
+                    } else if (statChoice.equals("2")) {
+                        int year = 0;
+                        while (true) {
+                            try {
+                                System.out.print("Nhập năm: ");
+                                year = Integer.parseInt(scanner.nextLine());
+                                break;
+                            } catch (NumberFormatException e) {
+                                System.out.println("Lỗi: Vui lòng chỉ nhập số cho tháng và năm! Hãy nhập lại.");
+                            }
+                        }
+                        manager.yearlySummary(year);
+                    } else {
+                        System.out.println("Lựa chọn không hợp lệ, vui lòng nhập lại!");
                     }
                     break;
                 case "6":
-                    try {
-                        System.out.print("Nhập tên ví tiền: ");
-                        String wName = scanner.nextLine();
-                        System.out.printf("Nhập số dư ban đầu: ");
-                        double wBalance = Double.parseDouble(scanner.nextLine());
-                        manager.addWallet(new CashWallet(wName, wBalance));
-                    } catch (NumberFormatException e) {
-                        System.out.println("Lỗi: Số dư phải là số!");
+                    System.out.print("Nhập tên ví tiền: ");
+                    String wName = scanner.nextLine();
+                    double wBalance = 0;
+                    while (true) {
+                        try {
+                            System.out.printf("Nhập số dư ban đầu: ");
+                            wBalance = Double.parseDouble(scanner.nextLine());
+                            break;
+                        } catch (NumberFormatException e) {
+                            System.out.println("Lỗi: Số dư phải là số! Hãy nhập lại.");
+                        }
                     }
+                    manager.addWallet(new CashWallet(wName, wBalance));
                     break;
                 case "7":
                     System.out.print("Nhập tên danh mục: ");
@@ -93,60 +110,77 @@ public  class Main {
     }
 
     private static void addTransactionUI(ExpenseManager manager, Scanner scanner) {
-        try {
-            System.out.println("\nTHÊM GIAO DỊCH MỚI");
-            System.out.print("Nhập mã giao dịch: ");
-            String id = scanner.nextLine();
+        System.out.println("\nTHÊM GIAO DỊCH MỚI");
+        System.out.print("Nhập mã giao dịch: ");
+        String id = scanner.nextLine();
 
-            System.out.print("Nhập số tiền: ");
-            double amount = Double.parseDouble(scanner.nextLine());
+        double amount = 0;
+        while(true) {
+            try {
+                System.out.print("Nhập số tiền: ");
+                amount = Double.parseDouble(scanner.nextLine());
+                break;
+            } catch (NumberFormatException e) {
+                System.out.println("Lỗi: Số tiền nhập vào phải là chữ số! Hãy nhập lại.");
+            }
+        }
 
-            System.out.print("Ngày giao dịch: ");
-            String dateStr = scanner.nextLine();
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-            LocalDate date = LocalDate.parse(dateStr, formatter);
+        LocalDate date = null;
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        while(true) {
+            try {
+                System.out.print("Ngày giao dịch: ");
+                String dateStr = scanner.nextLine();
+                date = LocalDate.parse(dateStr, formatter);
+                break;
+            } catch (DateTimeParseException e) {
+                System.out.println("Lỗi: Định dạng ngày tháng không đúng (Cần nhập dd/MM/yyyy)! Hãy nhập lại.");
+            }
+        }
 
-            System.out.print("Ghi chú: ");
-            String note = scanner.nextLine();
+        System.out.print("Ghi chú: ");
+        String note = scanner.nextLine();
 
+        Wallet wallet = null;
+        while(true) {
             System.out.print("Nhập tên ví sử dụng: ");
             String walletName = scanner.nextLine();
-            Wallet wallet = manager.getWalletByName(walletName);
-            if (wallet == null) {
-                System.out.println("Lỗi: Không tìm thấy ví '" + walletName + "'!");
-                return;
-            }
+            if (walletName.equalsIgnoreCase("huy")) return;
+            wallet = manager.getWalletByName(walletName);
+            if (wallet != null) break;
+            System.out.println("Lỗi: Không tìm thấy ví '" + walletName + "'. Vui lòng thử lại!");
+        }
 
+        Category category = null;
+        while(true) {
             System.out.print("Nhập tên danh mục: ");
             String catName = scanner.nextLine();
-            Category category = manager.getCategoryByName(catName);
-            if (category == null) {
-                System.out.println("Lỗi: Không tìm thấy danh mục '" + catName + "'!");
-                return;
-            }
+            if (catName.equalsIgnoreCase("huy")) return;
+            category = manager.getCategoryByName(catName);
+            if (category != null) break;
+            System.out.println("Lỗi: Không tìm thấy danh mục '" + catName + "'. Vui lòng thử lại!");
+        }
 
-            System.out.println("Đây là Thu nhập (1) hay Chi tiêu (2)?");
+        Transaction t = null;
+        while (true) {
+            System.out.print("Đây là Thu nhập (1) / Chi tiêu (2)?: ");
             String type = scanner.nextLine();
+            if (type.equalsIgnoreCase("huy")) return;
 
-            Transaction t;
             if (type.equals("1")) {
-                System.out.print("Nguồn thu: ");
+                System.out.print("Nguồn thu (VD: Lương công ty, Tiền thưởng): ");
                 String source = scanner.nextLine();
                 t = new Income(id, amount, date, category, note, wallet, source);
+                break;
             } else if (type.equals("2")) {
-                System.out.print("Phương thức thanh toán: ");
+                System.out.print("Phương thức thanh toán (VD: Tiền mặt, Chuyển khoản): ");
                 String paymentMethod = scanner.nextLine();
                 t = new Expense(id, amount, note, date, category, wallet, paymentMethod);
+                break;
             } else {
-                System.out.println("Lỗi: Loại giao dịch không hợp lệ!");
-                return;
+                System.out.println("Lựa chọn không hợp lệ.");
             }
-
-            manager.addTransaction(t);
-        } catch (NumberFormatException e) {
-            System.out.println("Lỗi: Số tiền nhập vào không hợp lệ (Phải là chữ số)!");
-        } catch (DateTimeParseException e) {
-            System.out.println("Lỗi: Định dạng ngày tháng không đúng (Cần nhập dd/MM/yyyy)!");
         }
+        manager.addTransaction(t);
     }
 }

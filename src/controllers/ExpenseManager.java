@@ -5,16 +5,21 @@ import models.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Collections;
 
 public class ExpenseManager {
     private List<Transaction> transactions;
     private List<Wallet> wallets;
     private List<Category> categories;
+    private Map<Category, Budget> budgets;
 
     public ExpenseManager() {
         this.transactions = new ArrayList<>();
         this.wallets = new ArrayList<>();
         this.categories = new ArrayList<>();
+        this.budgets = new HashMap<>();
     }
 
     /**
@@ -149,5 +154,47 @@ public class ExpenseManager {
         System.out.printf("Tổng thu: %,.2f VND\n", totalIncome);
         System.out.printf("Tổng chi: %,.2f VND\n", totalExpense);
         System.out.printf("Thực nhận: %,.2f VND\n", (totalIncome - totalExpense));
+    }
+
+    public void advancedStat(int month, int year) {
+        List<Expense> monthlyExpenses = new ArrayList<>();
+        Map<String, Double> categorySum = new HashMap<>();
+
+        for (Transaction t : transactions) {
+            if (t instanceof Expense && t.getDate().getMonthValue() == month && t.getDate().getYear() == year) {
+                Expense exp = (Expense) t;
+                monthlyExpenses.add(exp);
+
+                String catName = exp.getCategory().getName();
+                double amount = Math.abs(exp.getSignedAmount());
+                categorySum.put(catName, categorySum.getOrDefault(catName, 0.0) + amount);
+            }
+        }
+
+        if (monthlyExpenses.isEmpty()) {
+            System.out.println("Không có khoản chi tiêu nào trong tháng " + month + "/" + year);
+            return;
+        }
+
+        Expense maxExp = monthlyExpenses.get(0);
+        Expense minExp = monthlyExpenses.get(0);
+        for (Expense e : monthlyExpenses) {
+            if (Math.abs(e.getSignedAmount()) > Math.abs(maxExp.getSignedAmount())) maxExp = e;
+            if (Math.abs(e.getSignedAmount()) < Math.abs(minExp.getSignedAmount())) minExp = e;
+        }
+
+        System.out.printf("\nBÁO CÁO CHI TIẾT THÁNG %d/%d\n", month, year);
+        System.out.println("Khoản chi LỚN NHẤT:");
+        maxExp.printInfo();
+        System.out.println("Khoản chi NHỎ NHẤT:");
+        minExp.printInfo();
+
+        List<Map.Entry<String, Double>> sortedCats = new ArrayList<>(categorySum.entrySet());
+        sortedCats.sort((a, b) -> b.getValue().compareTo(a.getValue()));
+
+        System.out.println("\nDANH MỤC TỐN KÉM NHẤT:");
+        for (Map.Entry<String, Double> entry : sortedCats) {
+            System.out.printf("- %s: %,.0f VND\n", entry.getKey(), entry.getValue());
+        }
     }
 }
