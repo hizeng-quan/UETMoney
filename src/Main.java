@@ -108,12 +108,12 @@ public  class Main {
             }
         }
     }
-
+    //thêm giao dịch
     private static void addTransactionUI(ExpenseManager manager, Scanner scanner) {
         System.out.println("\n--- THÊM GIAO DỊCH MỚI ---");
-        System.out.println("Nhập '-1' để quay lại, '0' để Hủy");
 
-        String id = "";
+        // Thêm biến typeChoice để lưu lại lựa chọn Loại giao dịch ở Bước 1
+        String typeChoice = "";
         double amount = 0;
         LocalDate date = null;
         String note = "";
@@ -123,26 +123,27 @@ public  class Main {
 
         int step = 1;
 
-        //Thêm điều kiện step > 0
+        // Tổng cộng có 7 bước
+        // Nếu nhỏ hơn 1 thì sẽ quay về menu
         while (step > 0 && step <= 7) {
+            System.out.println("-1: Quay lại \n 0: Hủy");
             switch (step) {
-                case 1:
-                    System.out.print("1. Nhập mã giao dịch: ");
-                    String inputId = scanner.nextLine();
+                case 1: // BƯỚC 1: CHỌN LOẠI GIAO DỊCH
+                    System.out.print("1. Đây là Thu nhập (1) hay Chi tiêu (2)?: ");
+                    String inputType = scanner.nextLine();
 
-                    if (inputId.equals("0")) return;
+                    if (inputType.equals("0")) return;
+                    if (inputType.equals("-1")) { step--; break; }
 
-                    // THAY ĐỔI 2: Cho phép step-- ở bước 1
-                    if (inputId.equals("-1")) {
-                        step--; // step sẽ trở thành 0
-                        break;  // Thoát switch, vòng lặp while thấy step = 0 sẽ tự động dừng
+                    if (inputType.equals("1") || inputType.equals("2")) {
+                        typeChoice = inputType;
+                        step++;
+                    } else {
+                        System.out.println("Lỗi: Lựa chọn không hợp lệ. Vui lòng nhập 1 hoặc 2.");
                     }
-
-                    id = inputId;
-                    step++;
                     break;
 
-                case 2:
+                case 2: // BƯỚC 2: NHẬP SỐ TIỀN
                     System.out.print("2. Nhập số tiền: ");
                     String inputAmount = scanner.nextLine();
 
@@ -157,10 +158,10 @@ public  class Main {
                     }
                     break;
 
-                // ... (Các case 3, 4, 5, 6, 7 giữ nguyên hoàn toàn giống như code trước) ...
-                case 3:
+                case 3: // BƯỚC 3: NGÀY GIAO DỊCH
                     System.out.print("3. Ngày giao dịch (dd/MM/yyyy): ");
                     String dateStr = scanner.nextLine();
+
                     if (dateStr.equals("0")) return;
                     if (dateStr.equals("-1")) { step--; break; }
 
@@ -172,9 +173,10 @@ public  class Main {
                     }
                     break;
 
-                case 4:
+                case 4: // BƯỚC 4: GHI CHÚ
                     System.out.print("4. Ghi chú: ");
                     String inputNote = scanner.nextLine();
+
                     if (inputNote.equals("0")) return;
                     if (inputNote.equals("-1")) { step--; break; }
 
@@ -182,9 +184,10 @@ public  class Main {
                     step++;
                     break;
 
-                case 5:
+                case 5: // BƯỚC 5: CHỌN VÍ
                     System.out.print("5. Nhập tên ví sử dụng: ");
                     String walletName = scanner.nextLine();
+
                     if (walletName.equals("0")) return;
                     if (walletName.equals("-1")) { step--; break; }
 
@@ -193,9 +196,10 @@ public  class Main {
                     else { System.out.println("Lỗi: Không tìm thấy ví '" + walletName + "'."); }
                     break;
 
-                case 6:
+                case 6: // BƯỚC 6: CHỌN DANH MỤC
                     System.out.print("6. Nhập tên danh mục: ");
                     String catName = scanner.nextLine();
+
                     if (catName.equals("0")) return;
                     if (catName.equals("-1")) { step--; break; }
 
@@ -204,40 +208,49 @@ public  class Main {
                     else { System.out.println("Lỗi: Không tìm thấy danh mục '" + catName + "'."); }
                     break;
 
-                case 7:
-                    System.out.print("7. Đây là Thu nhập (1) hay Chi tiêu (2)?: ");
-                    String type = scanner.nextLine();
-                    if (type.equals("0")) return;
-                    if (type.equals("-1")) { step--; break; }
-
-                    if (type.equals("1")) {
-                        System.out.print("   -> Nguồn thu (VD: Lương, Thưởng): ");
+                case 7: // BƯỚC 7: CHI TIẾT + LƯU GIAO DỊCH
+                    if (typeChoice.equals("1")) {
+                        System.out.print("7. Nguồn thu: ");
                         String source = scanner.nextLine();
+
                         if (source.equals("0")) return;
-                        if (source.equals("-1")) break;
+                        if (source.equals("-1")) { step--; break; }
 
-                        manager.addTransaction(new Income(id, amount, date, category, note, wallet, source));
-                        System.out.println("=> ĐÃ THÊM GIAO DỊCH THÀNH CÔNG!");
+                        // Sinh mã và lưu Thu nhập
+                        String autoId = generateTransactionId("THU", date, category);
+                        manager.addTransaction(new Income(autoId, amount, date, category, note, wallet, source));
+                        System.out.println("=> ĐÃ THÊM GIAO DỊCH THÀNH CÔNG! (Mã GD: " + autoId + ")\n");
                         step++;
-                    } else if (type.equals("2")) {
-                        System.out.print("   -> Phương thức thanh toán (VD: Tiền mặt, Chuyển khoản): ");
+
+                    } else if (typeChoice.equals("2")) {
+                        System.out.print("7. Phương thức thanh toán: ");
                         String paymentMethod = scanner.nextLine();
-                        if (paymentMethod.equals("0")) return;
-                        if (paymentMethod.equals("-1")) break;
 
-                        manager.addTransaction(new Expense(id, amount, note, date, category, wallet, paymentMethod));
-                        System.out.println("=> ĐÃ THÊM GIAO DỊCH THÀNH CÔNG!");
+                        if (paymentMethod.equals("0")) return;
+                        if (paymentMethod.equals("-1")) { step--; break; }
+
+                        // Sinh mã và lưu Chi tiêu
+                        String autoId = generateTransactionId("CHI", date, category);
+                        manager.addTransaction(new Expense(autoId, amount, note, date, category, wallet, paymentMethod));
+                        System.out.println("=> ĐÃ THÊM GIAO DỊCH THÀNH CÔNG! (Mã GD: " + autoId + ")\n");
                         step++;
-                    } else {
-                        System.out.println("Lựa chọn không hợp lệ. Vui lòng nhập 1 hoặc 2.");
                     }
                     break;
             }
         }
-
         // In thông báo khi step lùi về 0 và kết thúc vòng lặp
         if (step == 0) {
             System.out.println("Đã hủy quá trình thêm mới, quay lại Menu chính...");
         }
     }
+    // đây là hàm gen ID tự động
+    private static String generateTransactionId(String typePrefix, LocalDate date, Category category) {
+        String datePart = date.format(DateTimeFormatter.ofPattern("ddMM"));
+        String catName = category.getName().replaceAll("\\s+", "").toUpperCase();
+        String catPart = catName.length() >= 3 ? catName.substring(0, 3) : catName;
+        int randomPart = (int) (Math.random() * 9000) + 1000;
+
+        return String.format("%s-%s-%s-%d", typePrefix, datePart, catPart, randomPart);
+    }
 }
+
