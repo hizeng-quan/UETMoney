@@ -52,6 +52,18 @@ public class ExpenseManager {
         }
         return null;
     }
+
+    public void displayWalletBalances() {
+        if (wallets.isEmpty()) {
+            System.out.println("Chưa có ví nào trong hệ thống");
+            return;
+        }
+
+        System.out.println("\n SỐ DƯ CHI TIẾT TỪNG VÍ");
+        for (Wallet w : wallets) {
+            System.out.printf("- Ví %s (%s): %,.2f VND\n", w.getName(), w.getWalletType(), w.getBalance());
+        }
+    }
     /**
      * CRUD Functions.
      */
@@ -64,6 +76,7 @@ public class ExpenseManager {
             wallet.deposit(t.getAmount());
         } else {
             wallet.withdraw(t.getAmount());
+            checkBudgetWarning(t);
         }
         System.out.println("Đã ghi nhận giao dịch và cập nhật số dư!");
     }
@@ -156,7 +169,7 @@ public class ExpenseManager {
         System.out.printf("Thực nhận: %,.2f VND\n", (totalIncome - totalExpense));
     }
 
-    public void advancedStat(int month, int year) {
+    public void advancedStatistics(int month, int year) {
         List<Expense> monthlyExpenses = new ArrayList<>();
         Map<String, Double> categorySum = new HashMap<>();
 
@@ -195,6 +208,68 @@ public class ExpenseManager {
         System.out.println("\nDANH MỤC TỐN KÉM NHẤT:");
         for (Map.Entry<String, Double> entry : sortedCats) {
             System.out.printf("- %s: %,.0f VND\n", entry.getKey(), entry.getValue());
+        }
+    }
+
+    /**
+     * Budget Limit.
+     */
+
+    public void setBudget(Category category, double limit, enums.Period period) {
+        budgets.put(category, new Budget(category, limit, period));
+        System.out.printf("Đã đặt ngân sách tối đa cho '%s' là %,.0f VND (%s).\n", category.getName(), limit, period);
+    }
+
+    private void checkBudgetWarning(Transaction currentTx) {
+        Category category = currentTx.getCategory();
+        if (!budgets.containsKey(category)) return;
+
+        Budget budget = budgets.get(category);
+        double spent = 0;
+        LocalDate targetDate = currentTx.getDate();
+
+        for (Transaction t : transactions) {
+            if (t.getCategory().equals(category) && t.getSignedAmount() < 0) {
+                LocalDate txDate = t.getDate();
+                boolean inSamePeriod = false;
+
+                switch (budget.getPeriod()) {
+                    case DAILY:
+                        inSamePeriod = txDate.isEqual(targetDate);
+                        break;
+                    case WEEKLY:
+                        int txWeek = txDate.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+                        int targetWeek = targetDate.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+                        int txYear = txDate.get(java.time.temporal.IsoFields.WEEK_BASED_YEAR);
+                        int targetYear = targetDate.get(java.time.temporal.IsoFields.WEEK_BASED_YEAR);
+                        inSamePeriod = (txWeek == targetWeek && txYear == targetYear);
+                        break;
+                    case MONTHLY:
+                        inSamePeriod = (txDate.getMonthValue() == targetDate.getMonthValue()
+                                && txDate.getYear() == targetDate.getYear());
+                        break;
+                    case YEARLY:
+                        inSamePeriod = (txDate.getYear() == targetDate.getYear());
+                        break;
+                }
+
+                if (inSamePeriod) {
+                    spent += Math.abs(t.getSignedAmount());
+                }
+            }
+        }
+
+        if (budget.isExceeded(spent)) {
+            System.out.println("CẢNH BÁO NGÂN SÁCH");
+            System.out.printf("Bạn đã chi tiêu VƯỢT HẠN MỨC danh mục '%s'!\n", category.getName());
+
+            String periodStr = "";
+            if (budget.getPeriod() == enums.Period.DAILY) periodStr = "Ngày";
+            else if (budget.getPeriod() == enums.Period.WEEKLY) periodStr = "Tuần";
+            else if (budget.getPeriod() == enums.Period.MONTHLY) periodStr = "Tháng";
+            else if (budget.getPeriod() == enums.Period.YEARLY) periodStr = "Năm";
+
+            System.out.printf("Ngân sách (%s): %,.0f | Đã tiêu: %,.0f (Vượt lố %,.0f VND)\n", periodStr, budget.getLimit(), spent, (spent - budget.getLimit()));
         }
     }
 }
