@@ -90,7 +90,7 @@ public  class Main {
                     String wName = scanner.nextLine();
 
                     double wBalance = 0;
-                    while (true) {
+                    while(true) {
                         try {
                             System.out.print("Nhập số dư ban đầu: ");
                             wBalance = Double.parseDouble(scanner.nextLine());
