@@ -24,7 +24,7 @@ public class BankAccount extends Wallet{
             System.out.printf("Đã rút %,.2f VND. Số dư còn lại %,.2f VND\n",
                     amount, this.balance);
         } else {
-            System.out.println("Lỗi: số dư không đủ để rút và trả phí giao dịch");
+            System.out.println("Lỗi: Số dư không đủ để rút tiền");
         }
     }
 

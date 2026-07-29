@@ -272,4 +272,68 @@ public class ExpenseManager {
             System.out.printf("Ngân sách (%s): %,.0f | Đã tiêu: %,.0f (Vượt quá %,.0f VND)\n", periodStr, budget.getLimit(), spent, (spent - budget.getLimit()));
         }
     }
+
+    /**
+     * Searching Functions.
+     */
+
+    private void displaySearchResults(List<Transaction> results) {
+        if (results.isEmpty()) {
+            System.out.println("Không tìm thấy giao dịch nào phù hợp với tiêu chí!");
+        } else {
+            System.out.println("\n KẾT QUẢ TÌM KIẾM (" + results.size() + " giao dịch)");
+            for (Transaction t : results) {
+                t.printInfo();
+            }
+        }
+    }
+
+    public void searchById(String keyword) {
+        List<Transaction> results = new ArrayList<>();
+        for (Transaction t : transactions) {
+            if (t.getId().toLowerCase().contains(keyword.toLowerCase())) {
+                results.add(t);
+            }
+        }
+        displaySearchResults(results);
+    }
+
+    public void searchByCategory(String keyword) {
+        List<Transaction> results = new ArrayList<>();
+        for (Transaction t : transactions) {
+            if (t.getCategory().getName().toLowerCase().contains(keyword.toLowerCase())) {
+                results.add(t);
+            }
+        }
+        displaySearchResults(results);
+    }
+
+    public void searchByDate(LocalDate date) {
+        List<Transaction> results = new ArrayList<>();
+        for (Transaction t : transactions) {
+            if (t.getDate().isEqual(date)) results.add(t);
+        }
+        displaySearchResults(results);
+    }
+
+    public void searchByMonthYear(int month, int year) {
+        List<Transaction> results = new ArrayList<>();
+        for (Transaction t : transactions) {
+            if ((month == 0 || t.getDate().getMonthValue() == month) && t.getDate().getYear() == year) {
+                results.add(t);
+            }
+        }
+        displaySearchResults(results);
+    }
+
+    public void searchByAmountRange(double min, double max) {
+        List<Transaction> results = new ArrayList<>();
+        for (Transaction t : transactions) {
+            double actualAmount = Math.abs(t.getSignedAmount());
+            if (actualAmount >= min && actualAmount <= max) {
+                results.add(t);
+            }
+        }
+        displaySearchResults(results);
+    }
 }
