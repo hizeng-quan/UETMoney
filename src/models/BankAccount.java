@@ -6,8 +6,6 @@ public class BankAccount extends Wallet{
     private String bankName;
     private String accountNumber;
 
-    private static final double WITHDRAW_FEE = 1100.0;
-
     public BankAccount(String name, double initialBalance, String bankName, String accountNumber) {
         super(name, initialBalance);
         this.bankName = bankName;
@@ -21,12 +19,10 @@ public class BankAccount extends Wallet{
 
     @Override
     public void withdraw(double amount) {
-        double totalDeduction = amount + WITHDRAW_FEE;
-
-        if (amount > 0 && this.balance > totalDeduction) {
-            this.balance -= totalDeduction;
-            System.out.printf("Đã rút %,.2f VND. Phí giao dịch: %,.2f VND. Số dư còn lại %,.2f VND\n",
-                    amount, WITHDRAW_FEE, this.balance);
+        if (amount > 0 && this.balance >= amount) {
+            this.balance -= amount;
+            System.out.printf("Đã rút %,.2f VND. Số dư còn lại %,.2f VND\n",
+                    amount, this.balance);
         } else {
             System.out.println("Lỗi: số dư không đủ để rút và trả phí giao dịch");
         }
