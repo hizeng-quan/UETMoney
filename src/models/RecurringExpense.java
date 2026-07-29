@@ -23,8 +23,9 @@ public class RecurringExpense extends Expense {
         else if (period == Period.WEEKLY) periodVN = "Hàng tuần";
         else if (period == Period.MONTHLY) periodVN = "Hàng tháng";
         else if (period == Period.YEARLY) periodVN = "Hàng năm";
-        System.out.printf("[%s] %s | %s | %s | Số tiền: %,.2f VND | Ví: %s | Lặp lại: %s\n",
-                id, date.toString(), getType(), category.getName(), getSignedAmount(), wallet.getName(), periodVN);
+        System.out.println("Giao dịch " + id + " | " + getCategory() + " | " + getSignedAmount());
+        System.out.println("Ví: " + getWallet().getName() + " | Lặp lại " + periodVN);
+
         if (note != null && !note.isEmpty()) {
             System.out.println("   Ghi chú: " + note);
         }

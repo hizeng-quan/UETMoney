@@ -269,7 +269,7 @@ public class ExpenseManager {
             else if (budget.getPeriod() == enums.Period.MONTHLY) periodStr = "Tháng";
             else if (budget.getPeriod() == enums.Period.YEARLY) periodStr = "Năm";
 
-            System.out.printf("Ngân sách (%s): %,.0f | Đã tiêu: %,.0f (Vượt lố %,.0f VND)\n", periodStr, budget.getLimit(), spent, (spent - budget.getLimit()));
+            System.out.printf("Ngân sách (%s): %,.0f | Đã tiêu: %,.0f (Vượt quá %,.0f VND)\n", periodStr, budget.getLimit(), spent, (spent - budget.getLimit()));
         }
     }
 }
