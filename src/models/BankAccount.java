@@ -1,6 +1,7 @@
 package models;
 
 import enums.WalletType;
+import exception.InsufficientBalanceException;
 
 public class BankAccount extends Wallet{
     private String bankName;
@@ -26,6 +27,13 @@ public class BankAccount extends Wallet{
         } else {
             System.out.println("Lỗi: Số dư không đủ để rút tiền");
         }
+
+        if (this.balance < amount) {
+            throw new InsufficientBalanceException("Số dư không đủ để rút tiền!");
+        }
+
+        this.balance -= amount;
+        System.out.printf("Đã rút %,.2f VND. Số dư còn lại %,.2f VND\n", amount, this.balance);
     }
 
     public String getBankName() {

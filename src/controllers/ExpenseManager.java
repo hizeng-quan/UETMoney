@@ -1,5 +1,6 @@
 package controllers;
 
+import exception.InsufficientBalanceException;
 import models.*;
 
 import java.time.LocalDate;
@@ -75,7 +76,11 @@ public class ExpenseManager {
         if (t.getSignedAmount() > 0) {
             wallet.deposit(t.getAmount());
         } else {
-            wallet.withdraw(t.getAmount());
+            try {
+                wallet.withdraw(t.getAmount());
+            } catch (InsufficientBalanceException e) {
+                System.out.println("Lỗi giao dịch: " + e.getMessage());
+            }
             checkBudgetWarning(t);
         }
         System.out.println("Đã ghi nhận giao dịch và cập nhật số dư!");
@@ -93,7 +98,11 @@ public class ExpenseManager {
         if (target != null) {
             Wallet wallet = target.getWallet();
             if (target.getSignedAmount() > 0) {
-                wallet.withdraw(target.getAmount());
+                try {
+                    wallet.withdraw(target.getAmount());
+                } catch (InsufficientBalanceException e) {
+
+                }
             } else {
                 wallet.deposit(target.getAmount());
             }
