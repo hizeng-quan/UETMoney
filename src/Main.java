@@ -21,6 +21,7 @@ public  class Main {
             System.out.println("[7] Thêm danh mục mới");
             System.out.println("[8] Đặt/Kiểm tra hạn mức ngân sách");
             System.out.println("[9] Thống kê nâng cao (Max/Min, Top chi tiêu)");
+            System.out.println("[10] Tìm kiếm giao dịch");
             System.out.println("[0] Thoát chương trình");
             System.out.print("Mời bạn chọn chức năng (0-9): ");
 
@@ -159,6 +160,9 @@ public  class Main {
                     } catch (NumberFormatException e) {
                         System.out.println("Lỗi: Vui lòng chỉ nhập số cho tháng và năm!");
                     }
+                    break;
+                case "10":
+                    searchTransactionUI(manager, scanner);
                     break;
                 case "0":
                     System.out.println("Cảm ơn bạn đã sử dụng phần mềm. Tạm biệt!");
@@ -390,5 +394,64 @@ public  class Main {
         int randomPart = (int) (Math.random() * 9000) + 1000;
 
         return String.format("%s-%s-%s-%d", typePrefix, datePart, catPart, randomPart);
+    }
+
+    private static void searchTransactionUI(ExpenseManager manager, Scanner scanner) {
+        System.out.println("\nTÌM KIẾM GIAO DỊCH");
+        System.out.println("[1] Theo Mã giao dịch (ID)");
+        System.out.println("[2] Theo Tên danh mục");
+        System.out.println("[3] Theo Ngày cụ thể");
+        System.out.println("[4] Theo Tháng / Năm");
+        System.out.println("[5] Theo Khoảng số tiền");
+        System.out.println("[0] Quay lại Menu chính");
+        System.out.print("Mời bạn chọn tiêu chí (0-5): ");
+
+        String searchChoice = scanner.nextLine();
+        switch (searchChoice) {
+            case "1":
+                System.out.print("Nhập ID cần tìm: ");
+                manager.searchById(scanner.nextLine());
+                break;
+            case "2":
+                System.out.print("Nhập từ khóa Tên danh mục: ");
+                manager.searchByCategory(scanner.nextLine());
+                break;
+            case "3":
+                try {
+                    System.out.print("Nhập ngày cần tìm (dd/MM/yyyy): ");
+                    java.time.LocalDate d = java.time.LocalDate.parse(scanner.nextLine(), DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                    manager.searchByDate(d);
+                } catch (DateTimeParseException e) {
+                    System.out.println("Lỗi: Định dạng ngày tháng không đúng (Cần dd/MM/yyyy)!");
+                }
+                break;
+            case "4":
+                try {
+                    System.out.print("Nhập tháng (Gõ 0 nếu muốn tìm toàn bộ của 1 năm): ");
+                    int m = Integer.parseInt(scanner.nextLine());
+                    System.out.print("Nhập năm: ");
+                    int y = Integer.parseInt(scanner.nextLine());
+                    manager.searchByMonthYear(m, y);
+                } catch (NumberFormatException e) {
+                    System.out.println("Lỗi: Bạn phải nhập số!");
+                }
+                break;
+            case "5":
+                try {
+                    System.out.print("Số tiền TỐI THIỂU: ");
+                    double min = Double.parseDouble(scanner.nextLine());
+                    System.out.print("Số tiền TỐI ĐA: ");
+                    double max = Double.parseDouble(scanner.nextLine());
+                    manager.searchByAmountRange(min, max);
+                } catch (NumberFormatException e) {
+                    System.out.println("Lỗi: Số tiền không hợp lệ!");
+                }
+                break;
+            case "0":
+                System.out.println("Đã quay lại Menu chính.");
+                break;
+            default:
+                System.out.println("Lựa chọn không hợp lệ!");
+        }
     }
 }
