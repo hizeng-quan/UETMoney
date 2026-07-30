@@ -13,8 +13,22 @@ public class Budget {
         this.period = period;
     }
 
-    public boolean isExceeded(int spent) {
-        return  spent > limit;
+    /**
+     * Kiểm tra chi tiêu đã vượt hạn mức chưa.
+     * @param spent tổng chi tiêu hiện tại
+     * @return true nếu đã vượt hạn mức
+     */
+    public boolean isExceeded(double spent) {
+        return spent > limit;
+    }
+
+    /**
+     * Tính số tiền còn lại trong hạn mức.
+     * @param spent tổng chi tiêu hiện tại
+     * @return số tiền còn được phép chi (âm nếu đã vượt)
+     */
+    public double getRemaining(double spent) {
+        return limit - spent;
     }
 
     public Category getCategory() {
@@ -23,6 +37,12 @@ public class Budget {
 
     public double getLimit() {
         return limit;
+    }
+
+    public void setLimit(double limit) {
+        if (limit > 0) {
+            this.limit = limit;
+        }
     }
 
     public Period getPeriod() {
