@@ -11,6 +11,7 @@ import java.util.Scanner;
 public class UIManager {
     private ExpenseManager manager;
     private Scanner scanner;
+    private DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     public UIManager(ExpenseManager manager, Scanner scanner) {
         this.manager = manager;
@@ -37,8 +38,7 @@ public class UIManager {
 
     // CASE 1: THÊM GIAO DỊCH
     public void addTransactionUI() {
-        // ... Code giống hệt phần tôi vừa sửa cho bạn ...
-        // Lưu ý: Đổi getInput(scanner) thành getInput()
+
         System.out.println("\n--- THÊM GIAO DỊCH MỚI ---");
 
         double amount = 0;
@@ -46,7 +46,6 @@ public class UIManager {
         String note = "", source = "", paymentMethod = "";
         Wallet wallet = null;
         Category category = null;
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
         int step = 1;
 
@@ -165,7 +164,7 @@ public class UIManager {
 
         return String.format("%s-%s-%s-%d", typePrefix, datePart, catPart, randomPart);
     }
-    // CASE 6: THÊM VÍ MỚI (Làm theo cấu trúc Step)
+    // CASE 6: THÊM VÍ
     public void addWalletUI() {
         System.out.println("\n--- THÊM VÍ TIỀN MỚI ---");
         int step = 1;
@@ -231,7 +230,7 @@ public class UIManager {
         if (step == 0) System.out.println("Đã hủy thêm ví mới.");
     }
 
-    // CASE 5: THỐNG KÊ (Làm theo cấu trúc Step)
+    // CASE 5: THỐNG KÊ
     public void showStatisticsUI() {
         System.out.println("\n--- THỐNG KÊ CHI TIÊU ---");
         int step = 1;
@@ -289,7 +288,7 @@ public class UIManager {
         }
     }
 
-    // CASE 2: XÓA GIAO DỊCH (Hàm đơn giản không cần step, nhưng vẫn dùng getInput để hỗ trợ Hủy)
+    // CASE 2: XÓA GIAO DỊCH
     public void removeTransactionUI() {
         System.out.println("\n--- XÓA GIAO DỊCH ---");
         System.out.println("0: Hủy");
@@ -302,7 +301,7 @@ public class UIManager {
         }
     }
 
-    // CASE 3, 4: (Các case chỉ in ra dữ liệu, không cần nhập liệu phức tạp)
+    // CASE 3, 4:
     public void showAllTransactionsUI() {
         manager.displayAllTransactions();
         System.out.println("\nBấm phím Enter để tiếp tục...");
@@ -315,7 +314,7 @@ public class UIManager {
         System.out.println("\nBấm phím Enter để tiếp tục...");
         scanner.nextLine();
     }
-    // CASE 7: THÊM DANH MỤC MỚI
+    // CASE 7: THÊM DANH MỤC
     public void addCategoryUI() {
         System.out.println("\n--- THÊM DANH MỤC MỚI ---");
         int step = 1;
@@ -459,5 +458,66 @@ public class UIManager {
             scanner.nextLine();
         }
     }
-    // Các hàm addCategoryUI, setBudgetUI... bạn tự viết tương tự cấu trúc trên.
+    //tìm kiếm
+    public void searchTransactionUI() {
+        System.out.println("\n--- TÌM KIẾM GIAO DỊCH ---");
+        int step = 1;
+        String searchChoice = "";
+
+        while (step > 0 && step <= 2) {
+            System.out.println("\n-1: Quay lại | 0: Hủy");
+            try {
+                switch (step) {
+                    case 1:
+                        System.out.println("1. Chọn tiêu chí tìm kiếm:");
+                        System.out.println("[1] Theo Mã ID \n[2] Theo Tên danh mục \n[3] Theo Ngày cụ thể \n[4] Theo Tháng/Năm \n[5] Theo Khoảng số tiền");
+                        System.out.print("Lựa chọn: ");
+                        searchChoice = getInput();
+                        if (searchChoice.matches("[12345]")) step++;
+                        else System.out.println("Lỗi: Lựa chọn không hợp lệ!");
+                        break;
+
+                    case 2:
+                        switch (searchChoice) {
+                            case "1":
+                                System.out.print("2. Nhập ID cần tìm: ");
+                                manager.searchById(getInput());
+                                break;
+                            case "2":
+                                System.out.print("2. Nhập từ khóa Tên danh mục: ");
+                                manager.searchByCategory(getInput());
+                                break;
+                            case "3":
+                                System.out.print("2. Nhập ngày cần tìm (dd/MM/yyyy): ");
+                                manager.searchByDate(LocalDate.parse(getInput(), formatter));
+                                break;
+                            case "4":
+                                System.out.print("2a. Nhập tháng (Gõ 0 để tìm cả năm): ");
+                                int sm = Integer.parseInt(getInput());
+                                System.out.print("2b. Nhập năm: ");
+                                int sy = Integer.parseInt(getInput()); // Gõ -1 ở đây sẽ ném Exception và quay về Bước 1
+                                manager.searchByMonthYear(sm, sy);
+                                break;
+                            case "5":
+                                System.out.print("2a. Số tiền TỐI THIỂU: ");
+                                double min = Double.parseDouble(getInput());
+                                System.out.print("2b. Số tiền TỐI ĐA: ");
+                                double max = Double.parseDouble(getInput());
+                                manager.searchByAmountRange(min, max);
+                                break;
+                        }
+                        step = 3; // Hoàn thành
+                        break;
+                }
+            } catch (NavException e) {
+                if (e.action.equals("CANCEL")) return;
+                if (e.action.equals("BACK")) step--;
+            } catch (NumberFormatException e) {
+                System.out.println("Lỗi: Bạn phải nhập số!");
+            } catch (DateTimeParseException e) {
+                System.out.println("Lỗi: Định dạng ngày tháng không đúng (Cần dd/MM/yyyy)!");
+            }
+        }
+        if (step == 0) System.out.println("Đã hủy thao tác tìm kiếm.");
+    }
 }

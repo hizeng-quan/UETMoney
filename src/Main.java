@@ -26,6 +26,7 @@ public class Main {
             System.out.println("[7] Thêm danh mục mới");
             System.out.println("[8] Đặt/Kiểm tra hạn mức ngân sách");
             System.out.println("[9] Thống kê nâng cao (Max/Min, Top chi tiêu)");
+            System.out.println("[10] Tìm kiếm giao dịch");
             System.out.println("[0] Thoát chương trình");
             System.out.print("Mời bạn chọn chức năng (0-9): ");
 
@@ -41,6 +42,7 @@ public class Main {
                 case "7": ui.addCategoryUI(); break;
                 case "8": ui.setBudgetUI(); break;
                 case "9": ui.advancedStatisticsUI(); break;
+                case "10": ui.searchTransactionUI(); break;
                 case "0":
                     System.out.println("Cảm ơn bạn đã sử dụng phần mềm. Tạm biệt!");
                     scanner.close();
