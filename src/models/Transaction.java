@@ -25,7 +25,11 @@ public abstract class Transaction {
     public abstract double getSignedAmount();
 
     public void printInfo() {
-        System.out.println("Giao dịch " + id + " | " + getType() + " | " + getSignedAmount());
+        System.out.println("Giao dịch " + id + " | " + getCategory() + " | " + getSignedAmount());
+        System.out.println("Ví: " + getWallet().getName() + " | " + getDate());
+        if (note != null && !note.isEmpty()) {
+            System.out.println("   Ghi chú: " + note);
+        }
     }
 
     public String getId() {
