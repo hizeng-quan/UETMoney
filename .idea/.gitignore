@@ -8,3 +8,13 @@
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
+# Bỏ qua thư mục chứa file đã biên dịch (Mã máy)
+out/
+target/
+*.class
+
+# Bỏ qua các file và thư mục cấu hình cá nhân của IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+
