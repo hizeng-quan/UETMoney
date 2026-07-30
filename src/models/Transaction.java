@@ -47,4 +47,6 @@ public abstract class Transaction {
     public Wallet getWallet() {
         return wallet;
     }
+
+    public String getNote() { return note; }
 }
