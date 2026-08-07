@@ -7,10 +7,18 @@ public class BankAccount extends Wallet{
     private String bankName;
     private String accountNumber;
 
-    public BankAccount(String name, double initialBalance, String bankName, String accountNumber) {
-        super(name, initialBalance);
-        this.bankName = bankName;
-        this.accountNumber = accountNumber;
+    public BankAccount(String name, double balance, String bankName, String accountNumber) {
+        super(name, balance);
+
+        if (bankName == null || bankName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Tên ngân hàng không được để trống!");
+        }
+        if (accountNumber == null || accountNumber.trim().isEmpty()) {
+            throw new IllegalArgumentException("Số tài khoản không được để trống!");
+        }
+
+        this.bankName = bankName.trim();
+        this.accountNumber = accountNumber.trim();
     }
 
     @Override
