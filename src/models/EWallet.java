@@ -5,9 +5,14 @@ import enums.WalletType;
 public class EWallet extends Wallet {
     private String provider;
 
-    public EWallet(String name, double initialBalance, String provider) {
-        super(name, initialBalance);
-        this.provider = provider;
+    public EWallet(String name, double balance, String provider) {
+        super(name, balance);
+
+        if (provider == null || provider.trim().isEmpty()) {
+            throw new IllegalArgumentException("Nhà cung cấp ví không được để trống!");
+        }
+
+        this.provider = provider.trim();
     }
 
     @Override

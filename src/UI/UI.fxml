@@ -17,7 +17,8 @@
 <?import javafx.scene.shape.Circle?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane prefHeight="720.0" prefWidth="1100.0" style="-fx-background-color: #121212;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ControllerUI.ControlUI">
+<?import javafx.scene.image.ImageView?>
+<BorderPane prefHeight="720.0" prefWidth="1100.0" style="-fx-background-color: #121212;" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ControllerUI.ControlUI">
 
     <!-- HEADER: Thanh tiêu đề trên cùng -->
     <top>
@@ -37,7 +38,6 @@
                 <HBox alignment="CENTER_RIGHT" spacing="10.0" HBox.hgrow="ALWAYS">
                     <children>
                         <Button fx:id="btnExportCsv" style="-fx-background-color: #262626; -fx-text-fill: #2ed573; -fx-border-color: #2ed573; -fx-border-radius: 4; -fx-cursor: hand;" text="Xuất CSV" />
-                        <Button fx:id="btnExportJson" style="-fx-background-color: #262626; -fx-text-fill: #2ed573; -fx-border-color: #2ed573; -fx-border-radius: 4; -fx-cursor: hand;" text="Xuất JSON" />
                     </children>
                 </HBox>
             </children>
@@ -55,6 +55,7 @@
                 <Button fx:id="btnNavTransaction" alignment="BASELINE_LEFT" maxWidth="1.7976931348623157E308" prefHeight="40.0" style="-fx-background-color: #2ed573; -fx-text-fill: #121212; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand;" text="💳  Giao Dịch" />
                 <Button fx:id="btnNavWallet" alignment="BASELINE_LEFT" maxWidth="1.7976931348623157E308" prefHeight="40.0" style="-fx-background-color: transparent; -fx-text-fill: #e0e0e0; -fx-background-radius: 5; -fx-cursor: hand;" text="👛  Ví Tiền" />
                 <Button fx:id="btnNavBudget" alignment="BASELINE_LEFT" maxWidth="1.7976931348623157E308" prefHeight="40.0" style="-fx-background-color: transparent; -fx-text-fill: #e0e0e0; -fx-background-radius: 5; -fx-cursor: hand;" text="🎯  Ngân Sách" />
+                <Button fx:id="btnNavRecurring" alignment="BASELINE_LEFT" maxWidth="1.7976931348623157E308" prefHeight="40.0" style="-fx-background-color: transparent; -fx-text-fill: #e0e0e0; -fx-background-radius: 5; -fx-cursor: hand;" text="📅  Định Kỳ" />
                 <Button fx:id="btnNavStatistic" alignment="BASELINE_LEFT" maxWidth="1.7976931348623157E308" prefHeight="40.0" style="-fx-background-color: transparent; -fx-text-fill: #e0e0e0; -fx-background-radius: 5; -fx-cursor: hand;" text="📊  Thống Kê" />
             </children>
         </VBox>
@@ -138,6 +139,9 @@
                                         <TextField fx:id="txtAccountNumber" promptText="Số tài khoản (Bank)" style="-fx-background-color: white; -fx-text-fill: black;" />
                                         <TextField fx:id="txtProvider" promptText="Nhà cung cấp (EWallet)" style="-fx-background-color: white; -fx-text-fill: black;" />
                                         <Button fx:id="btnAddWallet" maxWidth="1.7976931348623157E308" style="-fx-background-color: #2ed573; -fx-text-fill: #121212; -fx-font-weight: bold; -fx-cursor: hand;" text="Tạo Ví Mới" />
+                                        <Button fx:id="btnDeleteWallet" maxWidth="1.7976931348623157E308" style="-fx-background-color: #ff4757; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="Xóa Ví Đã Chọn">
+                                            <VBox.margin><Insets top="5.0" /></VBox.margin>
+                                        </Button>
                                     </children>
                                 </VBox>
                                 <TableView fx:id="tblWallets" style="-fx-background-color: #1e1e1e;" HBox.hgrow="ALWAYS">
@@ -165,6 +169,9 @@
                                         <TextField fx:id="txtBudgetLimit" promptText="Hạn mức chi tiêu" style="-fx-background-color: white; -fx-text-fill: black;" />
                                         <ComboBox fx:id="cbBudgetPeriod" maxWidth="1.7976931348623157E308" promptText="Chọn chu kỳ" style="-fx-background-color: white; -fx-text-fill: black;" />
                                         <Button fx:id="btnSetBudget" maxWidth="1.7976931348623157E308" style="-fx-background-color: #2ed573; -fx-text-fill: #121212; -fx-font-weight: bold; -fx-cursor: hand;" text="Lưu Ngân Sách" />
+                                        <Button fx:id="btnDeleteBudget" maxWidth="1.7976931348623157E308" style="-fx-background-color: #ff4757; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="Xóa Ngân Sách Đã Chọn">
+                                            <VBox.margin><Insets top="5.0" /></VBox.margin>
+                                        </Button>
                                     </children>
                                 </VBox>
                                 <TableView fx:id="tblBudgets" style="-fx-background-color: #1e1e1e;" HBox.hgrow="ALWAYS">
@@ -179,14 +186,50 @@
                         </HBox>
                     </children>
                 </VBox>
-
-                <!-- VIEW 4: THỐNG KÊ & TẠO DANH MỤC -->
+                <!-- VIEW 4: CHI PHÍ ĐỊNH KỲ -->
+                <VBox fx:id="viewRecurring" spacing="15.0" visible="false">
+                    <children>
+                        <HBox alignment="CENTER_LEFT" spacing="10.0">
+                            <children>
+                                <Label text="Danh Sách Chi Phí Định Kỳ" textFill="#2ed573">
+                                    <font><Font name="System Bold" size="16.0" /></font>
+                                </Label>
+                            </children>
+                        </HBox>
+                        <TableView fx:id="tblRecurring" style="-fx-background-color: #1e1e1e;" VBox.vgrow="ALWAYS">
+                            <columns>
+                                <TableColumn fx:id="colRecurId" prefWidth="120.0" text="Mã Giao Dịch" />
+                                <TableColumn fx:id="colRecurCategory" prefWidth="150.0" text="Danh Mục" />
+                                <TableColumn fx:id="colRecurAmount" prefWidth="150.0" text="Số Tiền" />
+                                <TableColumn fx:id="colRecurPeriod" prefWidth="120.0" text="Chu Kỳ" />
+                                <TableColumn fx:id="colRecurNextDate" prefWidth="150.0" text="Ngày Thu/Chi Kế Tiếp" />
+                                <TableColumn fx:id="colRecurWallet" prefWidth="150.0" text="Ví Thanh Toán" />
+                            </columns>
+                        </TableView>
+                    </children>
+                </VBox>
+                <!-- VIEW 5: THỐNG KÊ & TẠO DANH MỤC -->
                 <VBox fx:id="viewStatistic" spacing="15.0" visible="false">
                     <children>
                         <StackPane style="-fx-background-color: #1e1e1e; -fx-background-radius: 8; -fx-padding: 10;" VBox.vgrow="ALWAYS">
                             <children>
-                                <PieChart fx:id="chartExpenseByCategory" title="Thống Kê Chi Tiêu Theo Danh Mục" />
-                                <Circle fx:id="emptyChartPlaceholder" fill="WHITE" radius="80.0" stroke="#333333" strokeType="INSIDE" strokeWidth="2.0" visible="true" />
+                                <HBox spacing="15.0" style="-fx-background-color: #1e1e1e; -fx-background-radius: 8; -fx-padding: 15;" VBox.vgrow="ALWAYS">
+                                    <children>
+                                        <PieChart fx:id="chartExpenseByCategory" title="Phân Bổ Chi Tiêu" HBox.hgrow="ALWAYS" />
+
+                                        <VBox alignment="CENTER" prefWidth="300.0" spacing="10.0" style="-fx-border-color: #333333; -fx-border-width: 2; -fx-border-radius: 10;">
+                                            <children>
+                                                <Label text="TÌNH TRẠNG CHI TIÊU" textFill="#808080">
+                                                    <font><Font name="System Bold" size="12.0" /></font>
+                                                </Label>
+                                                <ImageView fx:id="imgBudgetStatus" fitHeight="200.0" fitWidth="200.0" preserveRatio="true" />
+                                                <Label fx:id="lblBudgetMascotText" text="..." textFill="WHITE" wrapText="true" alignment="CENTER" textAlignment="CENTER">
+                                                    <font><Font name="System Italic" size="13.0" /></font>
+                                                </Label>
+                                            </children>
+                                        </VBox>
+                                    </children>
+                                </HBox>
                             </children>
                         </StackPane>
 
@@ -198,6 +241,9 @@
                                         <TextField fx:id="txtCategoryName" promptText="Tên danh mục..." style="-fx-background-color: white; -fx-text-fill: black;" />
                                         <ComboBox fx:id="cbCategoryGroup" maxWidth="1.7976931348623157E308" promptText="Chọn phân loại chính" style="-fx-background-color: white; -fx-text-fill: black;" />
                                         <Button fx:id="btnAddCategory" maxWidth="1.7976931348623157E308" style="-fx-background-color: #2ed573; -fx-text-fill: #121212; -fx-font-weight: bold; -fx-cursor: hand;" text="Thêm Danh Mục" />
+                                        <Button fx:id="btnDeleteCategory" maxWidth="1.7976931348623157E308" style="-fx-background-color: #ff4757; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="Xóa Danh Mục Đã Chọn">
+                                            <VBox.margin><Insets top="5.0" /></VBox.margin>
+                                        </Button>
                                     </children>
                                 </VBox>
 
@@ -217,7 +263,6 @@
                         </HBox>
                     </children>
                 </VBox>
-
             </children>
         </StackPane>
     </center>
