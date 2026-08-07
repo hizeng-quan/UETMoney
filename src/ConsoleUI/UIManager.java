@@ -1,8 +1,11 @@
 package ConsoleUI;
 
 import controllers.ExpenseManager;
+import enums.Period;
 import enums.TransactionType;
+import exception.InsufficientBalanceException;
 import models.*;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -38,7 +41,6 @@ public class UIManager {
 
     // CASE 1: THÊM GIAO DỊCH
     public void addTransactionUI() {
-
         System.out.println("\n--- THÊM GIAO DỊCH MỚI ---");
 
         double amount = 0;
@@ -55,7 +57,11 @@ public class UIManager {
                 switch (step) {
                     case 1:
                         System.out.print("1. Nhập số tiền: ");
-                        amount = Double.parseDouble(getInput()); // Vừa lấy input, vừa parse, vừa check -1/0
+                        amount = Double.parseDouble(getInput());
+                        if (amount <= 0) {
+                            System.out.println("Lỗi: Số tiền phải lớn hơn 0!");
+                            break;
+                        }
                         step++;
                         break;
 
@@ -93,9 +99,11 @@ public class UIManager {
                             source = getInput();
 
                             String autoId = generateTransactionId("THU", date, category);
-                            manager.addTransaction(new Income(autoId, amount, date, category, note, wallet, source));
+                            Transaction income = new Income(autoId, amount, date, category, note, wallet, source);
+                            manager.addTransaction(income);
+
                             System.out.println("=> ĐÃ THÊM THU NHẬP THÀNH CÔNG! (Mã GD: " + autoId + ")");
-                            step = 9; // Hoàn thành, thoát vòng lặp
+                            step = 9; // Hoàn thành
                         } else {
                             System.out.print("6. Phương thức thanh toán: ");
                             paymentMethod = getInput();
@@ -109,7 +117,9 @@ public class UIManager {
 
                         if (isRecurring.equalsIgnoreCase("n")) {
                             String autoId = generateTransactionId("CHI", date, category);
-                            manager.addTransaction(new Expense(autoId, amount, note, date, category, wallet, paymentMethod));
+                            Transaction expense = new Expense(autoId, amount, note, date, category, wallet, paymentMethod);
+
+                            manager.addTransaction(expense); // Có thể quăng InsufficientBalanceException
                             System.out.println("=> ĐÃ THÊM CHI TIÊU THÀNH CÔNG! (Mã GD: " + autoId + ")");
                             step = 9;
                         } else if (isRecurring.equalsIgnoreCase("y")) {
@@ -122,29 +132,33 @@ public class UIManager {
                     case 8: // Chọn chu kỳ (Chi tiêu định kỳ)
                         System.out.print("8. Chọn chu kỳ lặp lại (1: Hàng ngày, 2: Hàng tuần, 3: Hàng tháng, 4: Hàng năm): ");
                         String pChoice = getInput();
-                        enums.Period periodEnum = switch (pChoice) {
-                            case "1" -> enums.Period.DAILY;
-                            case "2" -> enums.Period.WEEKLY;
-                            case "3" -> enums.Period.MONTHLY;
-                            case "4" -> enums.Period.YEARLY;
+                        Period periodEnum = switch (pChoice) {
+                            case "1" -> Period.DAILY;
+                            case "2" -> Period.WEEKLY;
+                            case "3" -> Period.MONTHLY;
+                            case "4" -> Period.YEARLY;
                             default -> null;
                         };
 
                         if (periodEnum != null) {
                             String autoId = generateTransactionId("CHI", date, category);
-                            manager.addTransaction(new RecurringExpense(autoId, amount, note, date, category, wallet, paymentMethod, periodEnum));
+                            Transaction recExpense = new RecurringExpense(autoId, amount, note, date, category, wallet, paymentMethod, periodEnum);
+
+                            manager.addTransaction(recExpense); // Có thể quăng InsufficientBalanceException
                             System.out.println("=> ĐÃ THÊM CHI TIÊU ĐỊNH KỲ THÀNH CÔNG! (Mã GD: " + autoId + ")");
                             step = 9;
                         } else {
-                            System.out.println("Lỗi: Lựa chọn không hợp lệ!");
+                            System.out.println("Lỗi: Lựa chọn chu kỳ không hợp lệ!");
                         }
                         break;
                 }
             } catch (NavException e) {
-                // XỬ LÝ QUAY LẠI / HỦY GỘP CHUNG TẠI ĐÂY
-                if (e.action.equals("CANCEL")) return; // Hủy hoàn toàn
-                if (e.action.equals("BACK")) step--;   // Lùi lại 1 bước
-
+                if (e.action.equals("CANCEL")) return;
+                if (e.action.equals("BACK")) step--;
+            } catch (InsufficientBalanceException e) {
+                // Bắt lỗi không đủ số dư khi trừ tiền ví
+                System.out.println("LỖI GIAO DỊCH: " + e.getMessage());
+                System.out.println("Giao dịch bị hủy do số dư không đủ. Vui lòng kiểm tra lại!");
             } catch (NumberFormatException e) {
                 System.out.println("Lỗi: Dữ liệu nhập vào phải là chữ số hợp lệ!");
             } catch (DateTimeParseException e) {
@@ -156,6 +170,7 @@ public class UIManager {
             System.out.println("Đã quay lại Menu chính...");
         }
     }
+
     private static String generateTransactionId(String typePrefix, LocalDate date, Category category) {
         String datePart = date.format(DateTimeFormatter.ofPattern("ddMM"));
         String catName = category.getName().replaceAll("\\s+", "").toUpperCase();
@@ -164,6 +179,7 @@ public class UIManager {
 
         return String.format("%s-%s-%s-%d", typePrefix, datePart, catPart, randomPart);
     }
+
     // CASE 6: THÊM VÍ
     public void addWalletUI() {
         System.out.println("\n--- THÊM VÍ TIỀN MỚI ---");
@@ -187,12 +203,20 @@ public class UIManager {
                     case 2:
                         System.out.print("2. Nhập tên ví: ");
                         wName = getInput();
+                        if (wName.isEmpty()) {
+                            System.out.println("Lỗi: Tên ví không được để trống!");
+                            break;
+                        }
                         step++;
                         break;
 
                     case 3:
                         System.out.print("3. Nhập số dư ban đầu: ");
                         wBalance = Double.parseDouble(getInput());
+                        if (wBalance < 0) {
+                            System.out.println("Lỗi: Số dư ban đầu không được âm!");
+                            break;
+                        }
                         step++;
                         break;
 
@@ -200,15 +224,15 @@ public class UIManager {
                         if (wChoice.equals("1")) {
                             manager.addWallet(new CashWallet(wName, wBalance));
                             System.out.println("=> ĐÃ THÊM VÍ TIỀN MẶT THÀNH CÔNG!");
-                            step = 5; // Thoát
+                            step = 5;
                         } else if (wChoice.equals("2")) {
                             System.out.print("4a. Nhập tên ngân hàng: ");
                             bankName = getInput();
                             System.out.print("4b. Nhập số tài khoản: ");
-                            accNum = getInput(); // Nếu gõ -1 ở đây, nó ném Exception và tự trừ step về 3
+                            accNum = getInput();
 
                             manager.addWallet(new BankAccount(wName, wBalance, bankName, accNum));
-                            System.out.println("=> ĐĐÃ THÊM TÀI KHOẢN NGÂN HÀNG THÀNH CÔNG!");
+                            System.out.println("=> ĐÃ THÊM TÀI KHOẢN NGÂN HÀNG THÀNH CÔNG!");
                             step = 5;
                         } else if (wChoice.equals("3")) {
                             System.out.print("4. Nhập tên ứng dụng cung cấp (Momo, ZaloPay...): ");
@@ -251,12 +275,11 @@ public class UIManager {
 
                     case 2:
                         if (statChoice.equals("1")) {
-                            System.out.print("2. Nhập tháng cần thống kê: ");
+                            System.out.print("2. Nhập tháng cần thống kê (1-12): ");
                             month = Integer.parseInt(getInput());
                             if (month >= 1 && month <= 12) step++;
-                            else System.out.println("Lỗi: Tháng phải từ 1-12.");
+                            else System.out.println("Lỗi: Tháng phải từ 1 đến 12.");
                         } else {
-                            // Nếu thống kê theo năm thì nhảy qua bước nhập tháng, đến thẳng bước nhập năm
                             step++;
                         }
                         break;
@@ -264,13 +287,17 @@ public class UIManager {
                     case 3:
                         System.out.print("3. Nhập năm (YYYY): ");
                         year = Integer.parseInt(getInput());
+                        if (year < 1900 || year > 2100) {
+                            System.out.println("Lỗi: Năm không hợp lệ!");
+                            break;
+                        }
 
                         if (statChoice.equals("1")) {
                             manager.monthlySummary(month, year);
                         } else {
                             manager.yearlySummary(year);
                         }
-                        step = 4; // Kết thúc
+                        step = 4;
                         System.out.println("Bấm phím Enter để quay lại Menu chính...");
                         scanner.nextLine();
                         break;
@@ -279,11 +306,10 @@ public class UIManager {
                 if (e.action.equals("CANCEL")) return;
                 if (e.action.equals("BACK")) {
                     step--;
-                    // Xử lý nhỏ: Nếu chọn Cả Năm (bước 2 bị bỏ qua), thì khi lùi bước 3 phải lùi thẳng về bước 1
                     if (step == 2 && statChoice.equals("2")) step--;
                 }
             } catch (NumberFormatException e) {
-                System.out.println("Lỗi: Tháng/Năm phải là số!");
+                System.out.println("Lỗi: Tháng/Năm phải là số nguyên hợp lệ!");
             }
         }
     }
@@ -301,7 +327,6 @@ public class UIManager {
         }
     }
 
-    // CASE 3, 4:
     public void showAllTransactionsUI() {
         manager.displayAllTransactions();
         System.out.println("\nBấm phím Enter để tiếp tục...");
@@ -314,6 +339,7 @@ public class UIManager {
         System.out.println("\nBấm phím Enter để tiếp tục...");
         scanner.nextLine();
     }
+
     // CASE 7: THÊM DANH MỤC
     public void addCategoryUI() {
         System.out.println("\n--- THÊM DANH MỤC MỚI ---");
@@ -328,6 +354,10 @@ public class UIManager {
                     case 1:
                         System.out.print("1. Nhập tên danh mục: ");
                         cName = getInput();
+                        if (cName.isEmpty()) {
+                            System.out.println("Lỗi: Tên danh mục không được trống.");
+                            break;
+                        }
                         step++;
                         break;
 
@@ -360,105 +390,136 @@ public class UIManager {
         }
     }
 
-    // CASE 8: ĐẶT/KIỂM TRA HẠN MỨC NGÂN SÁCH
+    // CẬP NHẬT CASE 8: ĐẶT / XEM / XÓA NGÂN SÁCH
     public void setBudgetUI() {
-        System.out.println("\n--- ĐẶT HẠN MỨC NGÂN SÁCH ---");
+        System.out.println("\n--- QUẢN LÝ HẠN MỨC NGÂN SÁCH ---");
         int step = 1;
-        Category bCat = null;
-        double limit = 0;
-        enums.Period period = null;
-
-        while (step > 0 && step <= 3) {
-            System.out.println("\n-1: Quay lại | 0: Hủy");
-            try {
-                switch (step) {
-                    case 1:
-                        System.out.print("1. Nhập tên danh mục để đặt ngân sách: ");
-                        String bCatName = getInput();
-                        bCat = manager.getCategoryByName(bCatName);
-
-                        if (bCat != null) step++;
-                        else System.out.println("Lỗi: Không tìm thấy danh mục này. Vui lòng thử lại.");
-                        break;
-
-                    case 2:
-                        System.out.print("2. Nhập số tiền giới hạn: ");
-                        limit = Double.parseDouble(getInput());
-                        step++;
-                        break;
-
-                    case 3:
-                        System.out.print("3. Chu kỳ (1: Hàng ngày, 2: Hàng tuần, 3: Hàng tháng, 4: Hàng năm): ");
-                        String pChoice = getInput();
-
-                        switch (pChoice) {
-                            case "1": period = enums.Period.DAILY; break;
-                            case "2": period = enums.Period.WEEKLY; break;
-                            case "3": period = enums.Period.MONTHLY; break;
-                            case "4": period = enums.Period.YEARLY; break;
-                            default: System.out.println("Lỗi: Lựa chọn không hợp lệ."); break;
-                        }
-
-                        if (period != null) step++;
-                        break;
-                }
-            } catch (NavException e) {
-                if (e.action.equals("CANCEL")) return;
-                if (e.action.equals("BACK")) step--;
-            } catch (NumberFormatException e) {
-                System.out.println("Lỗi: Số tiền nhập vào phải là chữ số hợp lệ.");
-            }
-        }
-
-        if (step == 0) {
-            System.out.println("Đã hủy thiết lập ngân sách.");
-        } else {
-            manager.setBudget(bCat, limit, period);
-            System.out.println("=> ĐÃ THIẾT LẬP NGÂN SÁCH THÀNH CÔNG CHO DANH MỤC: " + bCat.getName());
-        }
-    }
-
-    // CASE 9: THỐNG KÊ NÂNG CAO
-    public void advancedStatisticsUI() {
-        System.out.println("\n--- THỐNG KÊ NÂNG CAO ---");
-        int step = 1;
-        int m = 0, y = 0;
+        String bChoice = "";
 
         while (step > 0 && step <= 2) {
             System.out.println("\n-1: Quay lại | 0: Hủy");
             try {
                 switch (step) {
                     case 1:
-                        System.out.print("1. Nhập tháng cần xem chi tiết (1-12): ");
-                        m = Integer.parseInt(getInput());
-                        if (m >= 1 && m <= 12) step++;
-                        else System.out.println("Lỗi: Tháng không hợp lệ (Phải từ 1 đến 12).");
+                        System.out.println("1. Chọn chức năng ngân sách:");
+                        System.out.println("[1] Đặt hạn mức mới\n[2] Xem danh sách toàn bộ hạn mức\n[3] Xóa hạn mức của danh mục");
+                        System.out.print("Lựa chọn: ");
+                        bChoice = getInput();
+                        if (bChoice.matches("[123]")) step++;
+                        else System.out.println("Lỗi: Chỉ chọn từ 1 đến 3.");
                         break;
 
                     case 2:
-                        System.out.print("2. Nhập năm (YYYY): ");
-                        y = Integer.parseInt(getInput());
-                        step++;
+                        if (bChoice.equals("1")) {
+                            System.out.print("Nhập tên danh mục để đặt ngân sách: ");
+                            String bCatName = scanner.nextLine().trim();
+                            Category bCat = manager.getCategoryByName(bCatName);
+                            if (bCat == null) {
+                                System.out.println("Lỗi: Không tìm thấy danh mục này.");
+                                break;
+                            }
+                            System.out.print("Nhập số tiền giới hạn: ");
+                            double limit = Double.parseDouble(scanner.nextLine().trim());
+                            System.out.print("Chu kỳ (1: Hàng ngày, 2: Hàng tuần, 3: Hàng tháng, 4: Hàng năm): ");
+                            String pChoice = scanner.nextLine().trim();
+                            enums.Period period = switch (pChoice) {
+                                case "1" -> enums.Period.DAILY;
+                                case "2" -> enums.Period.WEEKLY;
+                                case "3" -> enums.Period.MONTHLY;
+                                case "4" -> enums.Period.YEARLY;
+                                default -> enums.Period.MONTHLY;
+                            };
+                            manager.setBudget(bCat, limit, period);
+                            System.out.println("=> THIẾT LẬP NGÂN SÁCH THÀNH CÔNG!");
+                        } else if (bChoice.equals("2")) {
+                            manager.displayAllBudgets();
+                        } else if (bChoice.equals("3")) {
+                            System.out.print("Nhập tên danh mục cần xóa hạn mức: ");
+                            String removeCat = scanner.nextLine().trim();
+                            manager.removeBudget(removeCat);
+                        }
+                        step = 3;
                         break;
                 }
             } catch (NavException e) {
                 if (e.action.equals("CANCEL")) return;
                 if (e.action.equals("BACK")) step--;
             } catch (NumberFormatException e) {
-                System.out.println("Lỗi: Vui lòng chỉ nhập chữ số nguyên cho tháng và năm.");
+                System.out.println("Lỗi: Số tiền không hợp lệ.");
+            }
+        }
+        System.out.println("\nBấm phím Enter để tiếp tục...");
+        scanner.nextLine();
+    }
+
+    // CASE 9: THỐNG KÊ NÂNG CAO
+    public void advancedStatisticsUI() {
+        System.out.println("\n--- THỐNG KÊ NÂNG CAO ---");
+        int step = 1;
+        String statChoice = "";
+
+        while (step > 0 && step <= 2) {
+            System.out.println("\n-1: Quay lại | 0: Hủy");
+            try {
+                switch (step) {
+                    case 1:
+                        System.out.println("1. Chọn tiêu chí thống kê nâng cao:");
+                        System.out.println("[1] Chi tiêu chi tiết theo từng danh mục");
+                        System.out.println("[2] Biến động chi tiêu theo các tháng trong năm");
+                        System.out.println("[3] Xem khoản chi lớn nhất / nhỏ nhất");
+                        System.out.println("[4] Báo cáo Top danh mục tiêu tốn tiền nhất");
+                        System.out.print("Lựa chọn của bạn: ");
+                        statChoice = getInput();
+                        if (statChoice.matches("[1234]")) step++;
+                        else System.out.println("Lỗi: Lựa chọn không hợp lệ!");
+                        break;
+
+                    case 2:
+                        switch (statChoice) {
+                            case "1":
+                                manager.displayStatisticsByCategory();
+                                step = 3;
+                                break;
+                            case "2":
+                                System.out.print("Nhập năm cần xem biến động (YYYY): ");
+                                int year = Integer.parseInt(getInput());
+                                manager.displayMonthlyExpenseBreakdown(year);
+                                step = 3;
+                                break;
+                            case "3":
+                                manager.displayMinMaxExpense();
+                                step = 3;
+                                break;
+                            case "4":
+                                System.out.print("Nhập số lượng danh mục muốn xem (Top N): ");
+                                int n = Integer.parseInt(getInput());
+                                if (n <= 0) {
+                                    System.out.println("Lỗi: Số lượng N phải lớn hơn 0!");
+                                    break;
+                                }
+                                manager.displayTopExpensiveCategories(n);
+                                step = 3;
+                                break;
+                        }
+                        break;
+                }
+            } catch (NavException e) {
+                if (e.action.equals("CANCEL")) return;
+                if (e.action.equals("BACK")) step--;
+            } catch (NumberFormatException e) {
+                System.out.println("Lỗi: Dữ liệu năm hoặc số lượng nhập vào phải là số nguyên!");
             }
         }
 
-        if (step == 0) {
-            System.out.println("Đã hủy thao tác thống kê nâng cao.");
-        } else {
-            System.out.println("\nĐang xử lý dữ liệu...");
-            manager.advancedStatistics(m, y);
+        if (step == 3) {
             System.out.println("\nBấm phím Enter để quay lại Menu chính...");
             scanner.nextLine();
+        } else {
+            System.out.println("Đã hủy thao tác thống kê nâng cao.");
         }
     }
-    //tìm kiếm
+
+    // CASE 10: TÌM KIẾM
     public void searchTransactionUI() {
         System.out.println("\n--- TÌM KIẾM GIAO DỊCH ---");
         int step = 1;
@@ -494,8 +555,12 @@ public class UIManager {
                             case "4":
                                 System.out.print("2a. Nhập tháng (Gõ 0 để tìm cả năm): ");
                                 int sm = Integer.parseInt(getInput());
+                                if (sm < 0 || sm > 12) {
+                                    System.out.println("Lỗi: Tháng không hợp lệ!");
+                                    break;
+                                }
                                 System.out.print("2b. Nhập năm: ");
-                                int sy = Integer.parseInt(getInput()); // Gõ -1 ở đây sẽ ném Exception và quay về Bước 1
+                                int sy = Integer.parseInt(getInput());
                                 manager.searchByMonthYear(sm, sy);
                                 break;
                             case "5":
@@ -503,6 +568,10 @@ public class UIManager {
                                 double min = Double.parseDouble(getInput());
                                 System.out.print("2b. Số tiền TỐI ĐA: ");
                                 double max = Double.parseDouble(getInput());
+                                if (min > max) {
+                                    System.out.println("Lỗi: Số tiền tối thiểu không được lớn hơn tối đa!");
+                                    break;
+                                }
                                 manager.searchByAmountRange(min, max);
                                 break;
                         }
@@ -513,11 +582,77 @@ public class UIManager {
                 if (e.action.equals("CANCEL")) return;
                 if (e.action.equals("BACK")) step--;
             } catch (NumberFormatException e) {
-                System.out.println("Lỗi: Bạn phải nhập số!");
+                System.out.println("Lỗi: Dữ liệu nhập vào phải là chữ số!");
             } catch (DateTimeParseException e) {
                 System.out.println("Lỗi: Định dạng ngày tháng không đúng (Cần dd/MM/yyyy)!");
             }
         }
         if (step == 0) System.out.println("Đã hủy thao tác tìm kiếm.");
+    }
+
+    // CASE 11: QUẢN LÝ GIAO DỊCH ĐỊNH KỲ VÀ KIỂM TRA ĐẾN HẠN
+    public void checkAndManageRecurringUI() {
+        System.out.println("\n--- QUẢN LÝ GIAO DỊCH ĐỊNH KỲ ---");
+        java.util.List<RecurringExpense> allRecurring = manager.getRecurringExpenses();
+
+        if (allRecurring.isEmpty()) {
+            System.out.println("Chưa có giao dịch định kỳ nào trong hệ thống.");
+            System.out.println("Gợi ý: Bạn có thể tạo giao dịch định kỳ bằng cách chọn Chức năng [1] -> Chọn Chi tiêu -> Chọn Có lặp lại.");
+            System.out.println("Bấm phím Enter để quay lại Menu chính...");
+            scanner.nextLine();
+            return;
+        }
+
+        System.out.println("\n===== DANH SÁCH GIAO DỊCH ĐỊNH KỲ HIỆN TẠI =====");
+        for (RecurringExpense re : allRecurring) {
+            re.printInfo(); // Gọi hàm hiển thị thông tin của đối tượng định kỳ
+        }
+
+        int step = 1;
+        while (step == 1) {
+            System.out.println("\n-1: Quay lại | 0: Hủy");
+            System.out.print("Bạn có muốn kiểm tra và xử lý các giao dịch ĐẾN HẠN hôm nay không? (y/n): ");
+            try {
+                String confirm = getInput();
+                if (confirm.equalsIgnoreCase("n")) {
+                    step = 0;
+                    break;
+                } else if (confirm.equalsIgnoreCase("y")) {
+                    // Kiểm tra các giao dịch đến hạn từ manager
+                    java.util.List<RecurringExpense> dueList = manager.checkDueRecurring();
+                    if (dueList.isEmpty()) {
+                        System.out.println("\n>>> Tuyệt vời! Không có giao dịch định kỳ nào đến hạn hôm nay.");
+                    } else {
+                        System.out.printf("\nCó %d giao dịch định kỳ ĐẾN HẠN hôm nay:\n", dueList.size());
+                        for (RecurringExpense re : dueList) {
+                            System.out.printf("  - %s: %,.0f VND (Chu kỳ: %s)\n",
+                                    re.getNote(), re.getAmount(), re.getPeriod());
+
+                            System.out.print("  Bạn có muốn hệ thống TỰ ĐỘNG TẠO giao dịch chi tiêu này không? (y/n): ");
+                            String answer = scanner.nextLine().trim().toLowerCase();
+                            if (answer.equals("y")) {
+                                try {
+                                    Expense newExpense = manager.createFromRecurring(re);
+                                    manager.addTransaction(newExpense);
+                                    System.out.println("  => Đã tự động tạo và trừ tiền! Mã GD mới: " + newExpense.getId());
+                                } catch (exception.InsufficientBalanceException e) {
+                                    System.out.println("  => LỖI: Ví không đủ số dư để thực hiện giao dịch tự động này!");
+                                }
+                            } else {
+                                System.out.println("  => Đã bỏ qua giao dịch định kỳ này.");
+                            }
+                        }
+                    }
+                    step = 2; // Hoàn thành quy trình
+                } else {
+                    System.out.println("Lỗi: Vui lòng nhập 'y' hoặc 'n'.");
+                }
+            } catch (NavException e) {
+                return; // Thoát ra menu chính
+            }
+        }
+
+        System.out.println("\nBấm phím Enter để tiếp tục...");
+        scanner.nextLine();
     }
 }
