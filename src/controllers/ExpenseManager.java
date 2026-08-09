@@ -166,6 +166,7 @@ public class ExpenseManager {
     }
 
     public void removeCategory(Category category) {
+        transactions.removeIf(t -> t.getCategory().equals(category));
         categories.remove(category);
         budgets.remove(category);
         budgetsByStr.remove(category.getName().toLowerCase());
