@@ -24,12 +24,6 @@ public class ExpenseManager {
         categories.add(new Category("Thu", TransactionType.INCOME));
     }
 
-    /**
-     * ==========================================
-     * ĐOẠN CODE GỐC CỦA BẠN (ĐƯỢC GIỮ NGUYÊN BẢN)
-     * ==========================================
-     */
-
     public void addWallet(Wallet newWallet) {
         // 1. Kiểm tra trùng tên ví (áp dụng cho tất cả các loại ví)
         for (Wallet w : wallets) {
@@ -86,7 +80,7 @@ public class ExpenseManager {
                 return  w;
             }
         }
-        return  null;
+        return null;
     }
 
     public Category getCategoryByName(String name) {
@@ -187,7 +181,7 @@ public class ExpenseManager {
     public void addBudget(Budget budget) {
         budgets.put(budget.getCategory(), budget);
         budgetsByStr.put(budget.getCategory().getName().toLowerCase(), budget);
-        System.out.printf("Da dat han muc %,.0f VND cho danh muc '%s' (chu ky: %s)\n",
+        System.out.printf("Đã đặt hạn mức %,.0f VND cho danh mục '%s' (chu kỳ: %s)\n",
                 budget.getLimit(), budget.getCategory().getName(), budget.getPeriod());
     }
 
@@ -195,25 +189,25 @@ public class ExpenseManager {
         Budget removed = budgetsByStr.remove(categoryName.toLowerCase());
         if (removed != null) {
             budgets.remove(removed.getCategory());
-            System.out.println("Da xoa han muc cua danh muc: " + categoryName);
+            System.out.println("Đã xóa hạn mức của danh mục: " + categoryName);
         } else {
-            System.out.println("Khong tim thay han muc cho danh muc: " + categoryName);
+            System.out.println("Không tìm thấy hạn mức của danh mục: " + categoryName);
         }
     }
 
     public void displayAllBudgets() {
         if (budgetsByStr.isEmpty()) {
-            System.out.println("Chua co han muc ngan sach nao.");
+            System.out.println("Chưa có hạn mức ngân sách nào.");
             return;
         }
 
-        System.out.println("\n===== HAN MUC NGAN SACH =====");
+        System.out.println("\n===== HẠN MỨC NGÂN SÁCH =====");
         for (Budget budget : budgetsByStr.values()) {
             double spent = calculateMonthlySpentByCategory(budget.getCategory());
             double remaining = budget.getRemaining(spent);
-            String status = budget.isExceeded(spent) ? "[VUOT HAN MUC!]" : "[Trong han muc]";
+            String status = budget.isExceeded(spent) ? "[VƯỢT HẠN MỨC!]" : "[Trong hạn mức]";
 
-            System.out.printf("  Danh muc: %-15s | Han muc: %,15.0f VND | Da chi: %,15.0f VND | Con lai: %,15.0f VND | %s\n",
+            System.out.printf("Danh mục: %-15s | Hạn mức: %,15.0f VND | Đã chi: %,15.0f VND | Còn lại: %,15.0f VND | %s\n",
                     budget.getCategory().getName(), budget.getLimit(), spent, remaining, status);
         }
     }
@@ -223,14 +217,14 @@ public class ExpenseManager {
         if (budget != null) {
             double spent = calculateMonthlySpentByCategory(category);
             if (budget.isExceeded(spent)) {
-                System.out.printf("!! CANH BAO: Chi tieu danh muc '%s' da VUOT han muc! " +
-                                "(Da chi: %,.0f / Han muc: %,.0f VND)\n",
+                System.out.printf("!! CẢNH BÁO: Chi tiêu danh mục '%s' đã VƯỢT hạn mức! " +
+                                "(Đã chi: %,.0f / Hạn mức: %,.0f VND)\n",
                         category.getName(), spent, budget.getLimit());
             } else {
                 double remaining = budget.getRemaining(spent);
                 if (remaining < budget.getLimit() * 0.2) {
-                    System.out.printf("!! LUU Y: Danh muc '%s' sap dat han muc! " +
-                                    "(Con lai: %,.0f / Han muc: %,.0f VND)\n",
+                    System.out.printf("!! LƯU Ý: Danh mục '%s' sắp đặt hạn mức! " +
+                                    "(Còn lại: %,.0f / Hạn mức: %,.0f VND)\n",
                             category.getName(), remaining, budget.getLimit());
                 }
             }
@@ -394,9 +388,7 @@ public class ExpenseManager {
     }
 
     /**
-     * ========================================================
-     * CÁC HÀM BỔ SUNG MỚI (KHÔNG TRÙNG CHỨC NĂNG VỚI CODE TRÊN)
-     * ========================================================
+     * CÁC HÀM BỔ SUNG MỚI.
      */
 
     private double calculateMonthlySpentByCategory(Category category) {
@@ -430,17 +422,17 @@ public class ExpenseManager {
     public void displayStatisticsByCategory() {
         Map<String, Double> stats = statisticsByCategory();
         if (stats.isEmpty()) {
-            System.out.println("Chua co giao dich chi tieu nao.");
+            System.out.println("Chưa có giao dịch chi tiêu nào.");
             return;
         }
 
-        System.out.println("\n===== CHI TIEU THEO DANH MUC =====");
+        System.out.println("\n===== CHI TIÊU THEO DANH MỤC =====");
         double total = 0;
         for (Map.Entry<String, Double> entry : stats.entrySet()) {
             System.out.printf("  %-20s: %,15.0f VND\n", entry.getKey(), entry.getValue());
             total += entry.getValue();
         }
-        System.out.printf("  %-20s: %,15.0f VND\n", "TONG CHI TIEU", total);
+        System.out.printf("  %-20s: %,15.0f VND\n", "TỔNG CHI TIÊU", total);
     }
 
     public void displayMonthlyExpenseBreakdown(int year) {
@@ -453,17 +445,17 @@ public class ExpenseManager {
         }
 
         if (monthlyExpense.isEmpty()) {
-            System.out.println("Khong co chi tieu nao trong nam " + year);
+            System.out.println("Không có chi tiêu nào trong năm: " + year);
             return;
         }
 
-        System.out.printf("\n===== CHI TIEU THEO THANG - NAM %d =====\n", year);
+        System.out.printf("\n===== CHI TIÊU THEO THÁNG - NĂM %d =====\n", year);
         double total = 0;
         for (Map.Entry<Integer, Double> entry : monthlyExpense.entrySet()) {
-            System.out.printf("  Thang %2d: %,15.0f VND\n", entry.getKey(), entry.getValue());
+            System.out.printf("  Tháng %2d: %,15.0f VND\n", entry.getKey(), entry.getValue());
             total += entry.getValue();
         }
-        System.out.printf("  %-10s: %,15.0f VND\n", "TONG", total);
+        System.out.printf("  %-10s: %,15.0f VND\n", "TỔNG", total);
     }
 
     /**

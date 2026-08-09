@@ -1,5 +1,4 @@
 import controllers.ExpenseManager;
-import enums.TransactionType;
 import javafx.application.Application;
 import models.*;
 import java.util.Scanner;
