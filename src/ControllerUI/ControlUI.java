@@ -21,6 +21,7 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.VBox;
 import storage.CsvStorage;
 
+import javax.management.Attribute;
 import javax.xml.stream.XMLStreamReader;
 import java.io.File;
 import java.net.URL;
@@ -123,6 +124,7 @@ public class ControlUI implements Initializable {
     @FXML private TableColumn<Category, String> colCategoryNote;
     @FXML private ImageView imgBudgetStatus;
     @FXML private Label lblBudgetMascotText;
+    @FXML private DatePicker dpStatDate;
 
 
     // Ảnh
@@ -288,20 +290,17 @@ public class ControlUI implements Initializable {
         cbPeriod.setItems(FXCollections.observableArrayList(Period.values()));
         cbBudgetPeriod.setItems(FXCollections.observableArrayList(Period.values()));
 
-        cbWallet.setCellFactory(param -> new ListCell<Wallet>() {
-            @Override
-            protected void updateItem(Wallet item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? "" : item.getName());
-            }
-        });
-        cbWallet.setButtonCell(new ListCell<Wallet>() {
-            @Override
-            protected void updateItem(Wallet item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? "" : item.getName());
-            }
-        });
+        cbWallet.setConverter(new javafx.util.StringConverter<Wallet>() {
+        @Override
+        public String toString(Wallet wallet) {
+            return (wallet == null) ? null : wallet.getName();
+        }
+
+        @Override
+        public Wallet fromString(String string) {
+            return null;
+        }
+    });
 
         dpDate.setValue(LocalDate.now());
     }
@@ -463,9 +462,9 @@ public class ControlUI implements Initializable {
             // Gọi hàm thêm giao dịch từ Manager (có kiểm tra ngoại lệ số dư)
             expenseManager.addTransaction(t);
 
-            // NẾU THÀNH CÔNG: Xóa trắng form & Cập nhật UI
-            clearTransactionForm();
+            // Xóa trắng form & Cập nhật UI
             refreshAllViews();
+            clearTransactionForm();
             showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đã thêm giao dịch thành công!");
 
         } catch (InsufficientBalanceException e) {
@@ -636,65 +635,89 @@ public class ControlUI implements Initializable {
     // 6. UI REFRESH & HELPER METHODS
     // ==========================================
     private void refreshAllViews() {
-        // Cập nhật Danh sách Ví & ComboBox Ví
-        List<Wallet> wallets = getPrivateFieldList("wallets");
-        walletList.setAll(wallets);
-        cbWallet.setItems(FXCollections.observableArrayList(wallets));
+        // Cập nhật dữ liệu mới
+        List<Wallet> wallets = expenseManager.getWallets();
+        List<Category> categories = expenseManager.getCategories();
+        List<Transaction> transactions = expenseManager.getTransactions();
+        Map<Category, Budget> budgetsMap = expenseManager.getBudgets();
+        List<BudgetWrapper> bList = new ArrayList<>();
 
-        // Cập nhật Danh sách Danh mục & ComboBox Danh mục
-        List<Category> categories = getPrivateFieldList("categories");
-        categoryList.setAll(categories);
+        // Cập nhật cb
+        cbWallet.setItems(FXCollections.observableArrayList(wallets));
         cbCategory.setItems(FXCollections.observableArrayList(categories));
         cbBudgetCategory.setItems(FXCollections.observableArrayList(categories));
 
+        // Cập nhật Danh sách Ví
+        walletList.setAll(wallets);
+
+        // Cập nhật Danh sách Danh mục
+        categoryList.setAll(categories);
+
         // Cập nhật Giao dịch
-        List<Transaction> transactions = getPrivateFieldList("transactions");
         transactionList.setAll(transactions);
 
         // Cập nhật Ngân sách
-        Map<Category, Budget> budgetsMap = getPrivateFieldMap("budgets");
-        List<BudgetWrapper> bList = new ArrayList<>();
+        LocalDate now = LocalDate.now();
         budgetsMap.forEach((cat, b) -> {
-            double totalSpent = 0;
-            for (Transaction t : transactions) {
-                if (t.getCategory().equals(cat) && t.getSignedAmount() < 0) {
-                    totalSpent += Math.abs(t.getSignedAmount());
-                }
-            }
-            boolean isExceeded = b.isExceeded(totalSpent);
-            bList.add(new BudgetWrapper(b, isExceeded ? "VƯỢT MỨC (" + String.format("%,.0f", totalSpent) + " VNĐ)" : "An toàn"));
+            // Tính tổng tiền đã chi của danh mục này TRONG THÁNG HIỆN TẠI
+            double totalSpentThisMonth = transactions.stream()
+                    .filter(t -> t.getCategory().equals(cat)
+                            && t.getType() == TransactionType.EXPENSE
+                            && t.getDate().getMonth() == now.getMonth()
+                            && t.getDate().getYear() == now.getYear())
+                    .mapToDouble(Transaction::getAmount)
+                    .sum();
+
+            boolean isExceeded = b.isExceeded(totalSpentThisMonth);
+            String status = isExceeded ? " VƯỢT MỨC (" + String.format("%,.0f", totalSpentThisMonth) + ")" : " An toàn";
+
+            bList.add(new BudgetWrapper(b, status));
         });
         budgetList.setAll(bList);
 
-        // Cập nhật CHI PHÍ ĐỊNH KỲ (MỚI)
+        // Cập nhật CHI PHÍ ĐỊNH KỲ
         recurringList.setAll(expenseManager.getRecurringExpenses());
 
         // Cập nhật tổng số dư hiển thị Header
         double totalBalance = expenseManager.calculateTotalBalance();
         lblTotalBalance.setText(String.format("%,.0f VNĐ", totalBalance));
 
+        // Câp nhật ảnh
         updateBudgetStatusImage();
 
+        // Cập nhật biểu đồ
         updatePieChart();
     }
 
     private void updatePieChart() {
         if (chartExpenseByCategory == null) return;
 
-        Map<String, Double> categorySum = new HashMap<>();
-        List<Transaction> transactions = getPrivateFieldList("transactions");
+        LocalDate filterDate = (dpStatDate != null && dpStatDate.getValue() != null)
+                ? dpStatDate.getValue() : LocalDate.now();
 
+        int month = filterDate.getMonthValue();
+        int year = filterDate.getYear();
+
+        List<Transaction> transactions = expenseManager.getTransactions();
+
+        // Lọc giao dịch
+        Map<String, Double> categorySum = new HashMap<>();
         for (Transaction t : transactions) {
-            if (t instanceof Expense) {
+            if (t.getType() == TransactionType.EXPENSE
+                    && t.getDate().getMonthValue() == month
+                    && t.getDate().getYear() == year) {
+
                 String catName = t.getCategory().getName();
-                double amount = Math.abs(t.getSignedAmount());
-                categorySum.put(catName, categorySum.getOrDefault(catName, 0.0) + amount);
+                categorySum.put(catName, categorySum.getOrDefault(catName, 0.0) + t.getAmount());
             }
         }
 
+        // Đưa dữ liệu lên biểu đồ
         ObservableList<PieChart.Data> pieChartData = FXCollections.observableArrayList();
         categorySum.forEach((cat, sum) -> pieChartData.add(new PieChart.Data(cat, sum)));
+
         chartExpenseByCategory.setData(pieChartData);
+        chartExpenseByCategory.setTitle("Thống kê chi tiêu tháng " + month + "/" + year);
     }
 
     private void updateBudgetStatusImage() {
@@ -740,8 +763,11 @@ public class ControlUI implements Initializable {
     private void clearTransactionForm() {
         txtAmount.clear();
         txtNote.clear();
+        cbCategory.getSelectionModel().clearSelection();
         cbCategory.setValue(null);
+        cbWallet.getSelectionModel().clearSelection();
         cbWallet.setValue(null);
+        cbPeriod.getSelectionModel().clearSelection();
         cbPeriod.setValue(null);
         dpDate.setValue(LocalDate.now());
 
