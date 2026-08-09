@@ -19,8 +19,8 @@ public class Launcher extends Application {
 //        stage.getIcons().add(icon);
 
         stage.setScene(scene);
-        stage.setFullScreen(true);
-        stage.setTitle("Demo");
+        stage.setFullScreen(false);
+        stage.setTitle("UETMoney");
         stage.show();
     }
 }
