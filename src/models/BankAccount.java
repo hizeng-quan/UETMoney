@@ -28,12 +28,15 @@ public class BankAccount extends Wallet{
 
     @Override
     public void withdraw(double amount) throws InsufficientBalanceException {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Số tiền rút phải lớn hơn 0!");
+        }
         if (this.balance < amount) {
             throw new InsufficientBalanceException("Số dư không đủ để rút tiền!");
         }
 
         this.balance -= amount;
-        System.out.printf("Đã rút %,.2f VND. Số dư còn lại %,.2f VND\n", amount, this.balance);
+        System.out.printf("Đã rút %,.2f VND. Số dư còn lại %,.2f VND%n", amount, this.balance);
     }
 
     public String getBankName() {

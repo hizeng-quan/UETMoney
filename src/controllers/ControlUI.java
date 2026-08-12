@@ -440,8 +440,7 @@ public class ControlUI implements Initializable {
             String catName = category.getName().replaceAll("\\s+", "").toUpperCase();
             String catPart = catName.length() >= 3 ? catName.substring(0, 3) : catName;
             int randomPart = (int) (Math.random() * 9000) + 1000;
-            String id = new String();
-            id = category.getType().toString().substring(0,2) + "-" + datePart + "-"
+            String id = category.getType().toString().substring(0, 2) + "-" + datePart + "-"
                     + catPart + "-" + randomPart;
             Transaction t;
 
@@ -490,7 +489,7 @@ public class ControlUI implements Initializable {
         }
 
         List<Transaction> filtered = new ArrayList<>();
-        List<Transaction> allTransactions = getPrivateFieldList("transactions");
+        List<Transaction> allTransactions = expenseManager.getTransactions();
         for (Transaction t : allTransactions) {
             if (t.getNote().toLowerCase().contains(keyword) ||
                     t.getCategory().getName().toLowerCase().contains(keyword) ||
@@ -574,11 +573,15 @@ public class ControlUI implements Initializable {
             return;
         }
 
-        Category category = new Category(name, type);
-        expenseManager.addCategory(category);
-        txtCategoryName.clear();
-        refreshAllViews();
-        showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đã thêm danh mục mới!");
+        try {
+            Category category = new Category(name, type);
+            expenseManager.addCategory(category);
+            txtCategoryName.clear();
+            refreshAllViews();
+            showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đã thêm danh mục mới!");
+        } catch (IllegalArgumentException e) {
+            showAlert(Alert.AlertType.WARNING, "Trùng tên", e.getMessage());
+        }
     }
 
     private void handleExport(String format) {

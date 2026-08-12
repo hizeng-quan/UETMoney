@@ -71,6 +71,11 @@ public class ExpenseManager {
     }
 
     public void addCategory(Category category) {
+        for (Category c : categories) {
+            if (c.getName().equalsIgnoreCase(category.getName())) {
+                throw new IllegalArgumentException("Danh mục '" + category.getName() + "' đã tồn tại!");
+            }
+        }
         categories.add(category);
     }
 
@@ -138,7 +143,10 @@ public class ExpenseManager {
                 try {
                     wallet.withdraw(target.getAmount());
                 } catch (InsufficientBalanceException e) {
-                    // Bắt ngoại lệ số dư
+                    System.out.println("LỖI: Không thể xóa giao dịch " + id
+                            + " vì ví '" + wallet.getName() + "' không đủ số dư để hoàn lại ("
+                            + String.format("%,.0f VND", target.getAmount()) + ").");
+                    return;
                 }
             } else {
                 wallet.deposit(target.getAmount());
@@ -152,11 +160,13 @@ public class ExpenseManager {
     }
 
     public void removeWallet(Wallet wallet) throws InsufficientBalanceException {
-        try {
-            wallets.remove(wallet);
-        } catch (Exception e) {
-            throw new InsufficientBalanceException("Ví đã thực hiện giao dịch không thể xoá!");
+        for (Transaction t : transactions) {
+            if (t.getWallet() == wallet) {
+                throw new InsufficientBalanceException(
+                        "Ví '" + wallet.getName() + "' đã có giao dịch liên quan, không thể xóa!");
+            }
         }
+        wallets.remove(wallet);
     }
 
     public void removeCategory(Category category) {
@@ -322,9 +332,10 @@ public class ExpenseManager {
     }
 
     public void setBudget(Category category, double limit, enums.Period period) {
-        budgets.put(category, new Budget(category, limit, period));
-        budgetsByStr.put(category.getName().toLowerCase(), new Budget(category, limit, period));
-        System.out.printf("Đã đặt ngân sách tối đa cho '%s' là %,.0f VND (%s).\n", category.getName(), limit, period);
+        Budget budget = new Budget(category, limit, period);
+        budgets.put(category, budget);
+        budgetsByStr.put(category.getName().toLowerCase(), budget);
+        System.out.printf("Đã đặt ngân sách tối đa cho '%s' là %,.0f VND (%s).%n", category.getName(), limit, period);
     }
 
     public void searchById(String keyword) {
