@@ -658,4 +658,49 @@ public class UIManager {
         System.out.println("\nBấm phím Enter để tiếp tục...");
         scanner.nextLine();
     }
+
+    public void importExportUI() {
+        System.out.println("\n--- NHẬP/XUẤT DỮ LIỆU GIAO DỊCH ---");
+        System.out.println("1. Xuất dữ liệu sang CSV");
+        System.out.println("2. Nhập dữ liệu từ CSV");
+        System.out.println("3. Xuất dữ liệu sang JSON");
+        System.out.println("4. Nhập dữ liệu từ JSON");
+        System.out.println("0. Quay lại");
+        System.out.print("Chọn chức năng (0-4): ");
+        
+        try {
+            String choice = getInput();
+            if (choice.equals("0")) return;
+            
+            System.out.print("Nhập đường dẫn file (VD: C:\\Users\\Quan\\Desktop\\data.json): ");
+            String path = scanner.nextLine().trim();
+            if (path.isEmpty()) return;
+            
+            if (choice.equals("1")) {
+                storage.CsvStorage csvStorage = new storage.CsvStorage();
+                csvStorage.saveTransactions(manager.getTransactions(), path);
+                System.out.println("=> Đã xuất dữ liệu CSV thành công!");
+            } else if (choice.equals("2")) {
+                storage.CsvStorage csvStorage = new storage.CsvStorage();
+                java.util.List<Transaction> imported = csvStorage.loadTransactions(path, manager.getCategories(), manager.getWallets());
+                for (Transaction t : imported) manager.addTransaction(t);
+                System.out.println("=> Đã nạp thành công " + imported.size() + " giao dịch từ CSV!");
+            } else if (choice.equals("3")) {
+                storage.JsonStorage jsonStorage = new storage.JsonStorage();
+                jsonStorage.saveTransactions(manager.getTransactions(), path);
+                System.out.println("=> Đã xuất dữ liệu JSON thành công!");
+            } else if (choice.equals("4")) {
+                storage.JsonStorage jsonStorage = new storage.JsonStorage();
+                java.util.List<Transaction> imported = jsonStorage.loadTransactions(path, manager.getCategories(), manager.getWallets());
+                for (Transaction t : imported) manager.addTransaction(t);
+                System.out.println("=> Đã nạp thành công " + imported.size() + " giao dịch từ JSON!");
+            } else {
+                System.out.println("=> Lựa chọn không hợp lệ!");
+            }
+        } catch (NavException e) {
+            return;
+        } catch (Exception e) {
+            System.out.println("=> Lỗi hệ thống: " + e.getMessage());
+        }
+    }
 }

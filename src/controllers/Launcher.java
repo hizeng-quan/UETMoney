@@ -5,6 +5,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import javafx.scene.image.Image;
 
 import java.io.IOException;
 
@@ -15,13 +16,18 @@ public class Launcher extends Application {
         Parent root = FXMLLoader.load(getClass().getResource("/UI/UI.fxml"));
         Scene scene = new Scene(root);
 
-//        Image icon = new Image("icon.jpg");
-//        stage.getIcons().add(icon);
+        Image icon = new Image(getClass().getResourceAsStream("/images/icon.png"));
+        stage.getIcons().add(icon);
 
         stage.setScene(scene);
         stage.setFullScreen(false);
         stage.setTitle("UETMoney");
+
+        stage.setAlwaysOnTop(true);
         stage.show();
+        stage.toFront();
+        stage.requestFocus();
+        stage.setAlwaysOnTop(false);
     }
 }
 

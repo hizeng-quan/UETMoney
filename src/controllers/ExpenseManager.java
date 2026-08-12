@@ -2,6 +2,7 @@ package controllers;
 
 import enums.TransactionType;
 import exception.InsufficientBalanceException;
+import interfaces.Storage;
 import models.*;
 
 import java.time.LocalDate;
@@ -13,6 +14,13 @@ public class ExpenseManager {
     private List<Category> categories;
     private Map<Category, Budget> budgets;
     private Map<String, Budget> budgetsByStr;
+    private Storage storage;
+
+    private static final String DATA_DIR = "data/";
+    private static final String TRANSACTIONS_FILE = DATA_DIR + "transactions";
+    private static final String WALLETS_FILE = DATA_DIR + "wallets";
+    private static final String CATEGORIES_FILE = DATA_DIR + "categories";
+    private static final String BUDGETS_FILE = DATA_DIR + "budgets";
 
     public ExpenseManager() {
         this.transactions = new ArrayList<>();
@@ -22,6 +30,92 @@ public class ExpenseManager {
         this.budgetsByStr = new HashMap<>();
         categories.add(new Category("Chi tiêu", TransactionType.EXPENSE));
         categories.add(new Category("Thu", TransactionType.INCOME));
+    }
+
+    /**
+     * Gán Storage implementation (CsvStorage hoặc JsonStorage).
+     */
+    public void setStorage(Storage storage) {
+        this.storage = storage;
+    }
+
+    /**
+     * Trả về phần mở rộng file dựa trên loại Storage đang dùng.
+     */
+    private String getFileExtension() {
+        if (storage instanceof storage.JsonStorage) {
+            return ".json";
+        }
+        return ".csv";
+    }
+
+    /**
+     * Nạp toàn bộ dữ liệu từ file khi khởi động.
+     */
+    public void loadAllData() {
+        if (storage == null) {
+            System.out.println("Chưa thiết lập Storage. Dữ liệu sẽ không được lưu trữ.");
+            return;
+        }
+
+        String ext = getFileExtension();
+        try {
+            // 1. Nạp categories trước (transaction phụ thuộc)
+            List<Category> loadedCategories = storage.loadCategories(CATEGORIES_FILE + ext);
+            if (!loadedCategories.isEmpty()) {
+                categories.clear();
+                categories.addAll(loadedCategories);
+            }
+            System.out.println("Đã nạp " + categories.size() + " danh mục.");
+
+            // 2. Nạp wallets (transaction phụ thuộc)
+            wallets = storage.loadWallets(WALLETS_FILE + ext);
+            System.out.println("Đã nạp " + wallets.size() + " ví tiền.");
+
+            // 3. Nạp budgets (phụ thuộc category)
+            budgets = storage.loadBudgets(BUDGETS_FILE + ext, categories);
+            // Đồng bộ budgetsByStr
+            budgetsByStr.clear();
+            for (Map.Entry<Category, Budget> entry : budgets.entrySet()) {
+                budgetsByStr.put(entry.getKey().getName().toLowerCase(), entry.getValue());
+            }
+            System.out.println("Đã nạp " + budgets.size() + " hạn mức ngân sách.");
+
+            // 4. Nạp transactions (phụ thuộc cả category và wallet)
+            transactions = storage.loadTransactions(TRANSACTIONS_FILE + ext, categories, wallets);
+            System.out.println("Đã nạp " + transactions.size() + " giao dịch.");
+
+        } catch (Exception e) {
+            System.out.println("Lỗi khi nạp dữ liệu: " + e.getMessage());
+            System.out.println("Chương trình sẽ khởi động với dữ liệu rỗng.");
+        }
+    }
+
+    /**
+     * Lưu toàn bộ dữ liệu xuống file khi thoát.
+     */
+    public void saveAllData() {
+        if (storage == null) {
+            System.out.println("Chưa thiết lập Storage. Dữ liệu không được lưu.");
+            return;
+        }
+
+        String ext = getFileExtension();
+
+        java.io.File dataDir = new java.io.File(DATA_DIR);
+        if (!dataDir.exists()) {
+            dataDir.mkdirs();
+        }
+
+        try {
+            storage.saveCategories(categories, CATEGORIES_FILE + ext);
+            storage.saveWallets(wallets, WALLETS_FILE + ext);
+            storage.saveBudgets(budgets, BUDGETS_FILE + ext);
+            storage.saveTransactions(transactions, TRANSACTIONS_FILE + ext);
+            System.out.println("Đã lưu toàn bộ dữ liệu thành công!");
+        } catch (Exception e) {
+            System.out.println("Lỗi khi lưu dữ liệu: " + e.getMessage());
+        }
     }
 
     public void addWallet(Wallet newWallet) {
@@ -430,6 +524,42 @@ public class ExpenseManager {
         return result;
     }
 
+    /**
+     * Thống kê chi tiêu theo từng danh mục trong một tháng.
+     */
+    public Map<Category, Double> statisticsByCategory(int month, int year) {
+        Map<Category, Double> result = new HashMap<>();
+
+        for (Transaction t : transactions) {
+            if (t instanceof Expense
+                    && t.getDate().getMonthValue() == month
+                    && t.getDate().getYear() == year) {
+                Category cat = t.getCategory();
+                double amount = Math.abs(t.getSignedAmount());
+                result.put(cat, result.getOrDefault(cat, 0.0) + amount);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Thống kê chi tiêu theo từng tháng trong một năm.
+     */
+    public Map<Integer, Double> expenseByMonth(int year) {
+        Map<Integer, Double> result = new HashMap<>();
+        for (int m = 1; m <= 12; m++) {
+            result.put(m, 0.0);
+        }
+
+        for (Transaction t : transactions) {
+            if (t instanceof Expense && t.getDate().getYear() == year) {
+                int m = t.getDate().getMonthValue();
+                result.put(m, result.get(m) + Math.abs(t.getSignedAmount()));
+            }
+        }
+        return result;
+    }
+
     public void displayStatisticsByCategory() {
         Map<String, Double> stats = statisticsByCategory();
         if (stats.isEmpty()) {
@@ -444,6 +574,59 @@ public class ExpenseManager {
             total += entry.getValue();
         }
         System.out.printf("  %-20s: %,15.0f VND\n", "TỔNG CHI TIÊU", total);
+    }
+
+    /**
+     * Hiển thị chi tiêu chi tiết theo từng danh mục trong tháng (version nâng cao).
+     */
+    public void displayStatisticsByCategory(int month, int year) {
+        Map<Category, Double> stats = statisticsByCategory(month, year);
+
+        if (stats.isEmpty()) {
+            System.out.println("Không có chi tiêu trong tháng " + month + "/" + year);
+            return;
+        }
+
+        System.out.printf("%n CHI TIÊU THEO DANH MỤC — THÁNG %d/%d%n", month, year);
+
+        double total = 0;
+        List<Map.Entry<Category, Double>> sorted = new ArrayList<>(stats.entrySet());
+        sorted.sort((a, b) -> b.getValue().compareTo(a.getValue()));
+
+        for (Map.Entry<Category, Double> entry : sorted) {
+            total += entry.getValue();
+        }
+
+        int rank = 1;
+        for (Map.Entry<Category, Double> entry : sorted) {
+            double percent = (total > 0) ? (entry.getValue() / total * 100) : 0;
+            System.out.printf("%d. %-20s %,12.0f VND  (%5.1f%%)%n",
+                    rank++, entry.getKey().getName(), entry.getValue(), percent);
+        }
+        System.out.printf("TỔNG CHI:               %,12.0f VND%n", total);
+    }
+
+    /**
+     * Hiển thị chi tiêu so sánh theo từng tháng trong năm.
+     */
+    public void displayExpenseByMonth(int year) {
+        Map<Integer, Double> monthlyData = expenseByMonth(year);
+
+        System.out.printf("%n CHI TIÊU THEO THÁNG NĂM %d%n", year);
+
+        double totalYear = 0;
+        for (int m = 1; m <= 12; m++) {
+            double amount = monthlyData.get(m);
+            totalYear += amount;
+            if (amount > 0) {
+                int barLength = (int) (amount / 1000000);
+                String bar = "█".repeat(Math.max(1, Math.min(barLength, 30)));
+                System.out.printf("Tháng %2d: %,15.0f VND  %s%n", m, amount, bar);
+            } else {
+                System.out.printf("Tháng %2d: %,15.0f VND%n", m, amount);
+            }
+        }
+        System.out.printf("TỔNG CẢ NĂM: %,.0f VND%n", totalYear);
     }
 
     public void displayMonthlyExpenseBreakdown(int year) {
@@ -550,11 +733,56 @@ public class ExpenseManager {
         return dueList;
     }
 
+    /**
+     * Lấy danh sách các giao dịch định kỳ đã đến hạn.
+     */
+    public List<RecurringExpense> getDueRecurringExpenses() {
+        return checkDueRecurring();
+    }
+
     public Expense createFromRecurring(RecurringExpense recurring) {
         String newId = recurring.getId() + "_" + LocalDate.now().toString();
         return new Expense(newId, recurring.getAmount(), recurring.getNote(),
                 LocalDate.now(), recurring.getCategory(), recurring.getWallet(),
                 recurring.getPaymentMethod());
+    }
+
+    /**
+     * Tạo một giao dịch mới từ template giao dịch định kỳ.
+     */
+    public Expense generateRecurringTransaction(RecurringExpense recurring) {
+        LocalDate dueDate = recurring.nextDueDate();
+
+        // Tạo ID mới cho giao dịch
+        String newId = String.format("CHI-AUTO-%s-%s-%d",
+                dueDate.format(java.time.format.DateTimeFormatter.ofPattern("ddMM")),
+                recurring.getCategory().getName().replaceAll("\\s+", "").toUpperCase().substring(0,
+                        Math.min(3, recurring.getCategory().getName().length())),
+                (int) (Math.random() * 9000) + 1000);
+
+        // Tạo Expense thông thường từ recurring template
+        Expense newExpense = new Expense(
+                newId,
+                recurring.getAmount(),
+                "Tự động từ giao dịch định kỳ: " + recurring.getId(),
+                dueDate,
+                recurring.getCategory(),
+                recurring.getWallet(),
+                recurring.getPaymentMethod()
+        );
+
+        // Thử thêm giao dịch (bao gồm kiểm tra số dư)
+        try {
+            addTransaction(newExpense);
+        } catch (exception.InsufficientBalanceException e) {
+            System.out.println("Lỗi tạo giao dịch định kỳ: " + e.getMessage());
+            return null;
+        }
+
+        // Cập nhật lastProcessedDate
+        recurring.setLastProcessedDate(dueDate);
+
+        return newExpense;
     }
 
     public void importTransactions(List<Transaction> loadedTransactions) {

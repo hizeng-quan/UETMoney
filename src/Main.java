@@ -1,14 +1,12 @@
 import controllers.ExpenseManager;
 import controllers.Launcher;
+import interfaces.Storage;
 import javafx.application.Application;
-import models.*;
 import java.util.Scanner;
 import controllers.UIManager;
 import storage.CsvStorage;
-import java.util.List;
 
 public class Main {
-    private static final String DATA_FILE = "data/transactions.csv";
 
     public static void main(String[] args) {
         System.out.println("Chọn UI / Console \n");
@@ -19,18 +17,14 @@ public class Main {
             Application.launch(Launcher.class);
         } else if (res.equals("Console")){
             ExpenseManager manager = new ExpenseManager();
-            CsvStorage storage = new CsvStorage();
 
-            // Nạp dữ liệu từ file CSV khi khởi động bản Console
-            try {
-                List<Transaction> loaded = storage.load(DATA_FILE);
-                if (!loaded.isEmpty()) {
-                    manager.importTransactions(loaded);
-                    System.out.println(">>> Đã nạp " + loaded.size() + " giao dịch từ file " + DATA_FILE);
-                }
-            } catch (Exception e) {
-                System.out.println(">>> Bắt đầu với dữ liệu mới (Không đọc được file CSV: " + e.getMessage() + ")");
-            }
+            // Thiết lập Storage (có thể đổi sang JsonStorage để lưu JSON)
+            Storage storage = new CsvStorage();
+            manager.setStorage(storage);
+
+            // Nạp toàn bộ dữ liệu từ file khi khởi động
+            System.out.println("\n Đang nạp dữ liệu...");
+            manager.loadAllData();
 
             // Khởi tạo class quản lý giao diện Console
             UIManager ui = new UIManager(manager, scanner);
@@ -48,8 +42,9 @@ public class Main {
                 System.out.println("[9] Thống kê nâng cao (Max/Min, Top chi tiêu, Phân loại...)");
                 System.out.println("[10] Tìm kiếm giao dịch");
                 System.out.println("[11] Quản lý & Kiểm tra giao dịch định kỳ đến hạn");
+                System.out.println("[12] Nhập/Xuất dữ liệu giao dịch (CSV/JSON)");
                 System.out.println("[0] Thoát chương trình");
-                System.out.print("Mời bạn chọn chức năng (0-11): ");
+                System.out.print("Mời bạn chọn chức năng (0-12): ");
 
                 String choice = scanner.nextLine().trim();
 
@@ -65,14 +60,10 @@ public class Main {
                     case "9": ui.advancedStatisticsUI(); break;
                     case "10": ui.searchTransactionUI(); break;
                     case "11": ui.checkAndManageRecurringUI(); break; // Chức năng tích hợp mới
+                    case "12": ui.importExportUI(); break;
                     case "0":
-                        // Tự động lưu dữ liệu vào file CSV khi thoát bản Console
-                        try {
-                            storage.save(manager.getTransactions(), DATA_FILE);
-                            System.out.println(">>> Đã tự động lưu thành công dữ liệu vào " + DATA_FILE);
-                        } catch (Exception e) {
-                            System.out.println("Lỗi lưu dữ liệu: " + e.getMessage());
-                        }
+                        // Tự động lưu toàn bộ dữ liệu khi thoát
+                        manager.saveAllData();
                         System.out.println("Cảm ơn bạn đã sử dụng phần mềm. Tạm biệt!");
                         scanner.close();
                         return;
