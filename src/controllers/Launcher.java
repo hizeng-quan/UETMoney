@@ -15,6 +15,7 @@ public class Launcher extends Application {
         //Stage stage = new Stage();
         Parent root = FXMLLoader.load(getClass().getResource("/UI/UI.fxml"));
         Scene scene = new Scene(root);
+        scene.getStylesheets().add(getClass().getResource("/UI/style.css").toExternalForm());
 
         Image icon = new Image(getClass().getResourceAsStream("/images/icon.png"));
         stage.getIcons().add(icon);
