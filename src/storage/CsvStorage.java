@@ -66,8 +66,8 @@ public class CsvStorage implements Storage {
                         transactions.add(t);
                     }
                 } catch (Exception e) {
-                    System.out.println("Canh bao: Khong the doc dong CSV: " + line);
-                    System.out.println("  Ly do: " + e.getMessage());
+                    System.out.println("Cảnh báo: Không thể đọc dòng CSV: " + line);
+                    System.out.println("  Lý do: " + e.getMessage());
                 }
             }
         }

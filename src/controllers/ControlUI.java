@@ -275,7 +275,8 @@ public class ControlUI implements Initializable {
         colRecurCategory.setCellValueFactory(cell -> new javafx.beans.property.SimpleStringProperty(cell.getValue().getCategory().getName()));
         colRecurAmount.setCellValueFactory(new PropertyValueFactory<>("amount"));
         colRecurPeriod.setCellValueFactory(new PropertyValueFactory<>("period"));
-        colRecurNextDate.setCellValueFactory(new PropertyValueFactory<>("nextDueDate"));
+        colRecurNextDate.setCellValueFactory(
+                cell -> new javafx.beans.property.SimpleObjectProperty<>(cell.getValue().nextDueDate()));
         colRecurWallet.setCellValueFactory(cell -> new javafx.beans.property.SimpleStringProperty(cell.getValue().getWallet().getName()));
         tblRecurring.setItems(recurringList);
     }
