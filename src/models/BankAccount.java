@@ -2,7 +2,7 @@ package models;
 
 import enums.WalletType;
 
-public class BankAccount extends Wallet{
+public class BankAccount extends Wallet {
     private String bankName;
     private String accountNumber;
 
@@ -20,16 +20,16 @@ public class BankAccount extends Wallet{
     }
 
     @Override
-    public void withdraw(double amount) {
-        double totalDeduction = amount + WITHDRAW_FEE;
-
-        if (amount > 0 && this.balance > totalDeduction) {
-            this.balance -= totalDeduction;
-            System.out.printf("Đã rút %,.2f VND. Phí giao dịch: %,.2f VND. Số dư còn lại %,.2f VND\n",
-                    amount, WITHDRAW_FEE, this.balance);
-        } else {
-            System.out.println("Lỗi: số dư không đủ để rút và trả phí giao dịch");
+    public void withdraw(double amount) throws InsufficientBalanceException {
+        if (amount <= 0) {
+            return;
         }
+        if (this.balance < amount) {
+            throw new InsufficientBalanceException(
+                    String.format("Số dư không đủ để rút %,.0f VND (hiện có %,.0f VND).", amount, this.balance));
+        }
+        this.balance -= amount;
+        System.out.printf("Đã rút %,.2f VND. Số dư còn lại %,.2f VND%n", amount, this.balance);
     }
 
     public String getBankName() {

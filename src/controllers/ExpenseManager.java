@@ -1,21 +1,34 @@
 package controllers;
 
-import enums.Period;
-import enums.TransactionType;
+import exception.InsufficientBalanceException;
+import interfaces.Storage;
 import models.*;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
- * Lớp điều phối chính: quản lý danh sách Transaction, Wallet, Category, Budget.
- * Cung cấp các chức năng CRUD, thống kê cơ bản và nâng cao, kiểm tra hạn mức ngân sách.
+ * Lớp điều phối trung tâm: quản lý danh sách Transaction, Wallet, Category,
+ * Budget.
+ * Tham chiếu tới Storage (interface) để lưu/nạp dữ liệu — không phụ thuộc cài
+ * đặt cụ thể.
  */
 public class ExpenseManager {
     private List<Transaction> transactions;
     private List<Wallet> wallets;
     private List<Category> categories;
-    private Map<String, Budget> budgets; // key = category name (lowercase)
+    private Map<Category, Budget> budgets;
+    private Storage storage;
+
+    // Đường dẫn mặc định cho các file dữ liệu
+    private static final String DATA_DIR = "data/";
+    private static final String TRANSACTIONS_FILE = DATA_DIR + "transactions";
+    private static final String WALLETS_FILE = DATA_DIR + "wallets";
+    private static final String CATEGORIES_FILE = DATA_DIR + "categories";
+    private static final String BUDGETS_FILE = DATA_DIR + "budgets";
 
     public ExpenseManager() {
         this.transactions = new ArrayList<>();
@@ -24,7 +37,91 @@ public class ExpenseManager {
         this.budgets = new HashMap<>();
     }
 
-    // ========== SUPPORT FUNCTIONS ==========
+    /**
+     * Gán Storage implementation (CsvStorage hoặc JsonStorage).
+     * Thể hiện tính đa hình: ExpenseManager dùng interface, không biết cài đặt cụ
+     * thể.
+     */
+    public void setStorage(Storage storage) {
+        this.storage = storage;
+    }
+
+    /**
+     * Trả về phần mở rộng file dựa trên loại Storage đang dùng.
+     */
+    private String getFileExtension() {
+        if (storage instanceof storage.JsonStorage) {
+            return ".json";
+        }
+        return ".csv"; // Mặc định CSV
+    }
+
+    // ======================== LOAD / SAVE ========================
+
+    /**
+     * Nạp toàn bộ dữ liệu từ file khi khởi động.
+     * Thứ tự: categories → wallets → budgets → transactions
+     * (vì transaction phụ thuộc vào category và wallet)
+     */
+    public void loadAllData() {
+        if (storage == null) {
+            System.out.println("⚠ Chưa thiết lập Storage. Dữ liệu sẽ không được lưu trữ.");
+            return;
+        }
+
+        String ext = getFileExtension();
+        try {
+            // 1. Nạp categories trước (transaction phụ thuộc)
+            categories = storage.loadCategories(CATEGORIES_FILE + ext);
+            System.out.println("✓ Đã nạp " + categories.size() + " danh mục.");
+
+            // 2. Nạp wallets (transaction phụ thuộc)
+            wallets = storage.loadWallets(WALLETS_FILE + ext);
+            System.out.println("✓ Đã nạp " + wallets.size() + " ví tiền.");
+
+            // 3. Nạp budgets (phụ thuộc category)
+            budgets = storage.loadBudgets(BUDGETS_FILE + ext, categories);
+            System.out.println("✓ Đã nạp " + budgets.size() + " hạn mức ngân sách.");
+
+            // 4. Nạp transactions (phụ thuộc cả category và wallet)
+            transactions = storage.loadTransactions(TRANSACTIONS_FILE + ext, categories, wallets);
+            System.out.println("✓ Đã nạp " + transactions.size() + " giao dịch.");
+
+        } catch (Exception e) {
+            System.out.println("⚠ Lỗi khi nạp dữ liệu: " + e.getMessage());
+            System.out.println("Chương trình sẽ khởi động với dữ liệu rỗng.");
+        }
+    }
+
+    /**
+     * Lưu toàn bộ dữ liệu xuống file khi thoát.
+     */
+    public void saveAllData() {
+        if (storage == null) {
+            System.out.println("⚠ Chưa thiết lập Storage. Dữ liệu không được lưu.");
+            return;
+        }
+
+        String ext = getFileExtension();
+
+        // Tạo thư mục data nếu chưa tồn tại
+        java.io.File dataDir = new java.io.File(DATA_DIR);
+        if (!dataDir.exists()) {
+            dataDir.mkdirs();
+        }
+
+        try {
+            storage.saveCategories(categories, CATEGORIES_FILE + ext);
+            storage.saveWallets(wallets, WALLETS_FILE + ext);
+            storage.saveBudgets(budgets, BUDGETS_FILE + ext);
+            storage.saveTransactions(transactions, TRANSACTIONS_FILE + ext);
+            System.out.println("✓ Đã lưu toàn bộ dữ liệu thành công!");
+        } catch (Exception e) {
+            System.out.println("✗ Lỗi khi lưu dữ liệu: " + e.getMessage());
+        }
+    }
+
+    // ======================== SUPPORT FUNCTIONS ========================
 
     public void addWallet(Wallet wallet) {
         wallets.add(wallet);
@@ -53,12 +150,37 @@ public class ExpenseManager {
         return null;
     }
 
-    // ========== CRUD FUNCTIONS ==========
+    public void displayWalletBalances() {
+        if (wallets.isEmpty()) {
+            System.out.println("Chưa có ví nào trong hệ thống.");
+            return;
+        }
 
-    /**
-     * Thêm giao dịch mới và cập nhật số dư ví.
-     * Nếu là chi tiêu, tự động kiểm tra hạn mức ngân sách.
-     */
+        System.out.println("\n SỐ DƯ CHI TIẾT TỪNG VÍ");
+        for (Wallet w : wallets) {
+            System.out.printf("- Ví %s (%s): %,.2f VND%n", w.getName(), w.getWalletType(), w.getBalance());
+        }
+    }
+
+    // Getter cho danh sách (hỗ trợ lưu file và hiển thị)
+    public List<Transaction> getTransactions() {
+        return transactions;
+    }
+
+    public List<Wallet> getWallets() {
+        return wallets;
+    }
+
+    public List<Category> getCategories() {
+        return categories;
+    }
+
+    public Map<Category, Budget> getBudgets() {
+        return budgets;
+    }
+
+    // ======================== CRUD FUNCTIONS ========================
+
     public void addTransaction(Transaction t) {
         transactions.add(t);
         Wallet wallet = t.getWallet();
@@ -66,14 +188,16 @@ public class ExpenseManager {
         if (t.getSignedAmount() > 0) {
             wallet.deposit(t.getAmount());
         } else {
-            wallet.withdraw(t.getAmount());
+            try {
+                wallet.withdraw(t.getAmount());
+            } catch (InsufficientBalanceException e) {
+                System.out.println("Lỗi giao dịch: " + e.getMessage());
+                transactions.remove(t); // Rollback nếu không đủ tiền
+                return;
+            }
+            checkBudgetWarning(t);
         }
-        System.out.println("Da ghi nhan giao dich va cap nhat so du!");
-
-        // Kiểm tra hạn mức ngân sách nếu là chi tiêu
-        if (t.getType() == TransactionType.EXPENSE) {
-            checkBudgetWarning(t.getCategory());
-        }
+        System.out.println("Đã ghi nhận giao dịch và cập nhật số dư!");
     }
 
     public void removeTransaction(String id) {
@@ -88,7 +212,11 @@ public class ExpenseManager {
         if (target != null) {
             Wallet wallet = target.getWallet();
             if (target.getSignedAmount() > 0) {
-                wallet.withdraw(target.getAmount());
+                try {
+                    wallet.withdraw(target.getAmount());
+                } catch (InsufficientBalanceException e) {
+                    System.out.println("Cảnh báo: Không thể hoàn trả số dư khi xóa: " + e.getMessage());
+                }
             } else {
                 wallet.deposit(target.getAmount());
             }
@@ -104,80 +232,15 @@ public class ExpenseManager {
         if (transactions.isEmpty()) {
             System.out.println("Chua co giao dich nao.");
             return;
-        } else {
-            System.out.println("LICH SU GIAO DICH");
-            for (Transaction t : transactions) {
-                t.printInfo();
-            }
+        }
+        System.out.println("LỊCH SỬ GIAO DỊCH");
+        for (Transaction t : transactions) {
+            t.printInfo();
+            System.out.println("---");
         }
     }
 
-    // ========== BUDGET FUNCTIONS ==========
-
-    /**
-     * Thêm hạn mức ngân sách cho danh mục.
-     */
-    public void addBudget(Budget budget) {
-        budgets.put(budget.getCategory().getName().toLowerCase(), budget);
-        System.out.printf("Da dat han muc %,.0f VND cho danh muc '%s' (chu ky: %s)\n",
-                budget.getLimit(), budget.getCategory().getName(), budget.getPeriod());
-    }
-
-    /**
-     * Xóa hạn mức ngân sách theo danh mục.
-     */
-    public void removeBudget(String categoryName) {
-        Budget removed = budgets.remove(categoryName.toLowerCase());
-        if (removed != null) {
-            System.out.println("Da xoa han muc cua danh muc: " + categoryName);
-        } else {
-            System.out.println("Khong tim thay han muc cho danh muc: " + categoryName);
-        }
-    }
-
-    /**
-     * Hiển thị tất cả hạn mức đã đặt và trạng thái hiện tại.
-     */
-    public void displayAllBudgets() {
-        if (budgets.isEmpty()) {
-            System.out.println("Chua co han muc ngan sach nao.");
-            return;
-        }
-
-        System.out.println("\n===== HAN MUC NGAN SACH =====");
-        for (Budget budget : budgets.values()) {
-            double spent = calculateMonthlySpentByCategory(budget.getCategory());
-            double remaining = budget.getRemaining(spent);
-            String status = budget.isExceeded(spent) ? "[VUOT HAN MUC!]" : "[Trong han muc]";
-
-            System.out.printf("  Danh muc: %-15s | Han muc: %,15.0f VND | Da chi: %,15.0f VND | Con lai: %,15.0f VND | %s\n",
-                    budget.getCategory().getName(), budget.getLimit(), spent, remaining, status);
-        }
-    }
-
-    /**
-     * Kiểm tra và cảnh báo nếu chi tiêu danh mục vượt hạn mức.
-     */
-    public void checkBudgetWarning(Category category) {
-        Budget budget = budgets.get(category.getName().toLowerCase());
-        if (budget != null) {
-            double spent = calculateMonthlySpentByCategory(category);
-            if (budget.isExceeded(spent)) {
-                System.out.printf("!! CANH BAO: Chi tieu danh muc '%s' da VUOT han muc! " +
-                                "(Da chi: %,.0f / Han muc: %,.0f VND)\n",
-                        category.getName(), spent, budget.getLimit());
-            } else {
-                double remaining = budget.getRemaining(spent);
-                if (remaining < budget.getLimit() * 0.2) {
-                    System.out.printf("!! LUU Y: Danh muc '%s' sap dat han muc! " +
-                                    "(Con lai: %,.0f / Han muc: %,.0f VND)\n",
-                            category.getName(), remaining, budget.getLimit());
-                }
-            }
-        }
-    }
-
-    // ========== BASIC STATISTICS ==========
+    // ======================== STATISTICS ========================
 
     public double calculateTotalBalance() {
         double total = 0;
@@ -201,10 +264,10 @@ public class ExpenseManager {
                 }
             }
         }
-        System.out.printf("\n THONG KE THANG %d/%d\n", month, year);
-        System.out.printf("Tong thu: %,.2f VND\n", totalIncome);
-        System.out.printf("Tong chi: %,.2f VND\n", totalExpense);
-        System.out.printf("Thuc nhan: %,.2f VND\n", (totalIncome - totalExpense));
+        System.out.printf("%n THỐNG KÊ THÁNG %d/%d%n", month, year);
+        System.out.printf("Tổng thu: %,.2f VND%n", totalIncome);
+        System.out.printf("Tổng chi: %,.2f VND%n", totalExpense);
+        System.out.printf("Thực nhận: %,.2f VND%n", (totalIncome - totalExpense));
     }
 
     public void yearlySummary(int year) {
@@ -221,16 +284,61 @@ public class ExpenseManager {
             }
         }
 
-        System.out.printf("\n THONG KE NAM %d\n", year);
-        System.out.printf("Tong thu: %,.2f VND\n", totalIncome);
-        System.out.printf("Tong chi: %,.2f VND\n", totalExpense);
-        System.out.printf("Thuc nhan: %,.2f VND\n", (totalIncome - totalExpense));
+        System.out.printf("%n THỐNG KÊ NĂM %d%n", year);
+        System.out.printf("Tổng thu: %,.2f VND%n", totalIncome);
+        System.out.printf("Tổng chi: %,.2f VND%n", totalExpense);
+        System.out.printf("Thực nhận: %,.2f VND%n", (totalIncome - totalExpense));
+    }
+
+    // ======================== ADVANCED STATISTICS ========================
+
+    /**
+     * Thống kê chi tiêu theo từng danh mục trong một tháng.
+     * Trả về Map<Category, Double> chứa tổng chi tiêu từng danh mục.
+     *
+     * @param month tháng cần thống kê (1-12)
+     * @param year  năm
+     * @return Map mapping từ Category → tổng chi tiêu (dương)
+     */
+    public Map<Category, Double> statisticsByCategory(int month, int year) {
+        Map<Category, Double> result = new HashMap<>();
+
+        for (Transaction t : transactions) {
+            if (t instanceof Expense
+                    && t.getDate().getMonthValue() == month
+                    && t.getDate().getYear() == year) {
+                Category cat = t.getCategory();
+                double amount = Math.abs(t.getSignedAmount());
+                result.put(cat, result.getOrDefault(cat, 0.0) + amount);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Thống kê chi tiêu theo từng tháng trong một năm.
+     * Trả về Map<Integer (tháng), Double (tổng chi)>.
+     */
+    public Map<Integer, Double> expenseByMonth(int year) {
+        Map<Integer, Double> result = new HashMap<>();
+        for (int m = 1; m <= 12; m++) {
+            result.put(m, 0.0);
+        }
+
+        for (Transaction t : transactions) {
+            if (t instanceof Expense && t.getDate().getYear() == year) {
+                int m = t.getDate().getMonthValue();
+                result.put(m, result.get(m) + Math.abs(t.getSignedAmount()));
+            }
+        }
+        return result;
     }
 
     // ========== ADVANCED STATISTICS ==========
 
     /**
      * Thống kê chi tiêu theo từng danh mục.
+     * 
      * @return Map<tên danh mục, tổng chi tiêu>
      */
     public Map<String, Double> statisticsByCategory() {
@@ -255,116 +363,168 @@ public class ExpenseManager {
             return;
         }
 
-        System.out.println("\n===== CHI TIEU THEO DANH MUC =====");
-        double total = 0;
-        for (Map.Entry<String, Double> entry : stats.entrySet()) {
-            System.out.printf("  %-20s: %,15.0f VND\n", entry.getKey(), entry.getValue());
-            total += entry.getValue();
+        // Tìm khoản chi lớn nhất / nhỏ nhất
+        Expense maxExp = monthlyExpenses.get(0);
+        Expense minExp = monthlyExpenses.get(0);
+        for (Expense e : monthlyExpenses) {
+            if (Math.abs(e.getSignedAmount()) > Math.abs(maxExp.getSignedAmount()))
+                maxExp = e;
+            if (Math.abs(e.getSignedAmount()) < Math.abs(minExp.getSignedAmount()))
+                minExp = e;
         }
-        System.out.printf("  %-20s: %,15.0f VND\n", "TONG CHI TIEU", total);
+
+        System.out.printf("%nBÁO CÁO CHI TIẾT THÁNG %d/%d%n", month, year);
+        System.out.println("═══════════════════════════════════════");
+        System.out.println("Khoản chi LỚN NHẤT:");
+        maxExp.printInfo();
+        System.out.println("\nKhoản chi NHỎ NHẤT:");
+        minExp.printInfo();
+
+        // Top danh mục tốn kém
+        List<Map.Entry<String, Double>> sortedCats = new ArrayList<>(categorySum.entrySet());
+        sortedCats.sort((a, b) -> b.getValue().compareTo(a.getValue()));
+
+        System.out.println("\n TOP DANH MỤC TỐN KÉM NHẤT:");
+        System.out.println("───────────────────────────────────────");
+        int rank = 1;
+        for (Map.Entry<String, Double> entry : sortedCats) {
+            System.out.printf("%d. %s: %,.0f VND%n", rank++, entry.getKey(), entry.getValue());
+        }
     }
 
     /**
-     * Chi tiêu theo từng tháng trong năm.
+     * Hiển thị chi tiêu so sánh theo từng tháng trong năm.
      */
-    public void displayMonthlyExpenseBreakdown(int year) {
-        Map<Integer, Double> monthlyExpense = new TreeMap<>();
+    public void displayExpenseByMonth(int year) {
+        Map<Integer, Double> monthlyData = expenseByMonth(year);
 
-        for (Transaction t : transactions) {
-            if (t.getType() == TransactionType.EXPENSE && t.getDate().getYear() == year) {
-                int month = t.getDate().getMonthValue();
-                monthlyExpense.put(month, monthlyExpense.getOrDefault(month, 0.0) + t.getAmount());
+        System.out.printf("%n CHI TIÊU THEO THÁNG NĂM %d%n", year);
+        System.out.println("═══════════════════════════════════════");
+
+        double totalYear = 0;
+        for (int m = 1; m <= 12; m++) {
+            double amount = monthlyData.get(m);
+            totalYear += amount;
+            if (amount > 0) {
+                // Thanh biểu đồ đơn giản
+                int barLength = (int) (amount / 1000000); // Mỗi █ = 1 triệu
+                String bar = "█".repeat(Math.max(1, Math.min(barLength, 30)));
+                System.out.printf("Tháng %2d: %,15.0f VND  %s%n", m, amount, bar);
+            } else {
+                System.out.printf("Tháng %2d: %,15.0f VND%n", m, amount);
             }
         }
+        System.out.println("───────────────────────────────────────");
+        System.out.printf("TỔNG CẢ NĂM: %,.0f VND%n", totalYear);
+    }
 
-        if (monthlyExpense.isEmpty()) {
-            System.out.println("Khong co chi tieu nao trong nam " + year);
+    /**
+     * Hiển thị chi tiêu chi tiết theo từng danh mục trong tháng.
+     */
+    public void displayStatisticsByCategory(int month, int year) {
+        Map<Category, Double> stats = statisticsByCategory(month, year);
+
+        if (stats.isEmpty()) {
+            System.out.println("Không có chi tiêu trong tháng " + month + "/" + year);
             return;
         }
 
-        System.out.printf("\n===== CHI TIEU THEO THANG - NAM %d =====\n", year);
+        System.out.printf("%n CHI TIÊU THEO DANH MỤC — THÁNG %d/%d%n", month, year);
+        System.out.println("═══════════════════════════════════════");
+
         double total = 0;
-        for (Map.Entry<Integer, Double> entry : monthlyExpense.entrySet()) {
-            System.out.printf("  Thang %2d: %,15.0f VND\n", entry.getKey(), entry.getValue());
+        List<Map.Entry<Category, Double>> sorted = new ArrayList<>(stats.entrySet());
+        sorted.sort((a, b) -> b.getValue().compareTo(a.getValue()));
+
+        for (Map.Entry<Category, Double> entry : sorted) {
             total += entry.getValue();
         }
-        System.out.printf("  %-10s: %,15.0f VND\n", "TONG", total);
+
+        int rank = 1;
+        for (Map.Entry<Category, Double> entry : sorted) {
+            double percent = (total > 0) ? (entry.getValue() / total * 100) : 0;
+            System.out.printf("%d. %-20s %,12.0f VND  (%5.1f%%)%n",
+                    rank++, entry.getKey().getName(), entry.getValue(), percent);
+        }
+        System.out.println("───────────────────────────────────────");
+        System.out.printf("TỔNG CHI:               %,12.0f VND%n", total);
+    }
+
+    // ======================== BUDGET LIMIT ========================
+
+    public void setBudget(Category category, double limit, enums.Period period) {
+        budgets.put(category, new Budget(category, limit, period));
+        System.out.printf("Đã đặt ngân sách tối đa cho '%s' là %,.0f VND (%s).%n", category.getName(), limit, period);
     }
 
     /**
      * Tìm khoản chi lớn nhất.
+     * 
      * @return Transaction có amount lớn nhất trong danh sách chi tiêu
      */
     public Transaction findLargestExpense() {
         Transaction largest = null;
         for (Transaction t : transactions) {
-            if (t.getType() == TransactionType.EXPENSE) {
-                if (largest == null || t.getAmount() > largest.getAmount()) {
-                    largest = t;
+            if (t.getCategory().equals(category) && t.getSignedAmount() < 0) {
+                LocalDate txDate = t.getDate();
+                boolean inSamePeriod = false;
+
+                switch (budget.getPeriod()) {
+                    case DAILY:
+                        inSamePeriod = txDate.isEqual(targetDate);
+                        break;
+                    case WEEKLY:
+                        int txWeek = txDate.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+                        int targetWeek = targetDate.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+                        int txYear = txDate.get(java.time.temporal.IsoFields.WEEK_BASED_YEAR);
+                        int targetYear = targetDate.get(java.time.temporal.IsoFields.WEEK_BASED_YEAR);
+                        inSamePeriod = (txWeek == targetWeek && txYear == targetYear);
+                        break;
+                    case MONTHLY:
+                        inSamePeriod = (txDate.getMonthValue() == targetDate.getMonthValue()
+                                && txDate.getYear() == targetDate.getYear());
+                        break;
+                    case YEARLY:
+                        inSamePeriod = (txDate.getYear() == targetDate.getYear());
+                        break;
+                }
+
+                if (inSamePeriod) {
+                    spent += Math.abs(t.getSignedAmount());
                 }
             }
         }
-        return largest;
-    }
 
-    /**
-     * Tìm khoản chi nhỏ nhất.
-     * @return Transaction có amount nhỏ nhất trong danh sách chi tiêu
-     */
-    public Transaction findSmallestExpense() {
-        Transaction smallest = null;
-        for (Transaction t : transactions) {
-            if (t.getType() == TransactionType.EXPENSE) {
-                if (smallest == null || t.getAmount() < smallest.getAmount()) {
-                    smallest = t;
-                }
+        if (budget.isExceeded(spent)) {
+            System.out.println("\n⚠ CẢNH BÁO NGÂN SÁCH ⚠");
+            System.out.printf("Bạn đã chi tiêu VƯỢT HẠN MỨC danh mục '%s'!%n", category.getName());
+
+            String periodStr;
+            switch (budget.getPeriod()) {
+                case DAILY:
+                    periodStr = "Ngày";
+                    break;
+                case WEEKLY:
+                    periodStr = "Tuần";
+                    break;
+                case MONTHLY:
+                    periodStr = "Tháng";
+                    break;
+                case YEARLY:
+                    periodStr = "Năm";
+                    break;
+                default:
+                    periodStr = budget.getPeriod().name();
             }
-        }
-        return smallest;
-    }
 
-    /**
-     * Top N danh mục tốn kém nhất.
-     */
-    public void displayTopExpensiveCategories(int n) {
-        Map<String, Double> stats = statisticsByCategory();
-        if (stats.isEmpty()) {
-            System.out.println("Chua co giao dich chi tieu nao.");
-            return;
-        }
-
-        // Sắp xếp theo giá trị giảm dần
-        List<Map.Entry<String, Double>> sorted = new ArrayList<>(stats.entrySet());
-        sorted.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
-
-        int limit = Math.min(n, sorted.size());
-        System.out.printf("\n===== TOP %d DANH MUC TON KEM =====\n", limit);
-        for (int i = 0; i < limit; i++) {
-            Map.Entry<String, Double> entry = sorted.get(i);
-            System.out.printf("  #%d %-20s: %,15.0f VND\n", (i + 1), entry.getKey(), entry.getValue());
+            System.out.printf("Ngân sách (%s): %,.0f | Đã tiêu: %,.0f (Vượt quá %,.0f VND)%n",
+                    periodStr, budget.getLimit(), spent, (spent - budget.getLimit()));
         }
     }
 
-    /**
-     * Hiển thị khoản chi lớn nhất và nhỏ nhất.
-     */
-    public void displayMinMaxExpense() {
-        Transaction largest = findLargestExpense();
-        Transaction smallest = findSmallestExpense();
+    // ======================== RECURRING TRANSACTIONS ========================
 
-        if (largest == null) {
-            System.out.println("Chua co giao dich chi tieu nao.");
-            return;
-        }
-
-        System.out.println("\n===== KHOAN CHI LON NHAT / NHO NHAT =====");
-        System.out.printf("  LON NHAT: ");
-        largest.printInfo();
-        System.out.printf("  NHO NHAT: ");
-        smallest.printInfo();
-    }
-
-    // ========== RECURRING TRANSACTION FUNCTIONS ==========
+    // ======================== RECURRING TRANSACTIONS ========================
 
     /**
      * Lấy danh sách tất cả giao dịch định kỳ.
@@ -380,7 +540,84 @@ public class ExpenseManager {
     }
 
     /**
+     * Lấy danh sách các giao dịch định kỳ đã đến hạn (Tùy chọn B: chỉ nhắc nhở).
+     */
+    public List<RecurringExpense> getDueRecurringExpenses() {
+        List<RecurringExpense> dueList = new ArrayList<>();
+        for (Transaction t : transactions) {
+            if (t instanceof RecurringExpense) {
+                RecurringExpense re = (RecurringExpense) t;
+                if (re.isDue()) {
+                    dueList.add(re);
+                }
+            }
+        }
+        return dueList;
+    }
+
+    /**
+     * Tạo một giao dịch mới từ template giao dịch định kỳ.
+     * Cập nhật lastProcessedDate và tạo Expense mới với ngày = nextDueDate.
+     *
+     * @param recurring giao dịch định kỳ gốc
+     * @return giao dịch mới đã tạo, hoặc null nếu thất bại
+     */
+    public Expense generateRecurringTransaction(RecurringExpense recurring) {
+        LocalDate dueDate = recurring.nextDueDate();
+
+        // Tạo ID mới cho giao dịch
+        String newId = String.format("CHI-AUTO-%s-%s-%d",
+                dueDate.format(java.time.format.DateTimeFormatter.ofPattern("ddMM")),
+                recurring.getCategory().getName().replaceAll("\\s+", "").toUpperCase().substring(0,
+                        Math.min(3, recurring.getCategory().getName().length())),
+                (int) (Math.random() * 9000) + 1000);
+
+        // Tạo Expense thông thường từ recurring template
+        Expense newExpense = new Expense(
+                newId,
+                recurring.getAmount(),
+                "Tự động từ giao dịch định kỳ: " + recurring.getId(),
+                dueDate,
+                recurring.getCategory(),
+                recurring.getWallet(),
+                recurring.getPaymentMethod());
+
+        // Thử thêm giao dịch (bao gồm kiểm tra số dư)
+        addTransaction(newExpense);
+
+        // Cập nhật lastProcessedDate
+        recurring.setLastProcessedDate(dueDate);
+
+        return newExpense;
+    }
+
+    // ======================== SEARCHING FUNCTIONS ========================
+
+    private void displaySearchResults(List<Transaction> results) {
+        if (results.isEmpty()) {
+            System.out.println("Không tìm thấy giao dịch nào phù hợp với tiêu chí!");
+        } else {
+            System.out.println("\n KẾT QUẢ TÌM KIẾM (" + results.size() + " giao dịch)");
+            for (Transaction t : results) {
+                t.printInfo();
+                System.out.println("---");
+            }
+        }
+    }
+
+    public void searchById(String keyword) {
+        List<Transaction> results = new ArrayList<>();
+        for (Transaction t : transactions) {
+            if (t instanceof RecurringExpense) {
+                result.add((RecurringExpense) t);
+            }
+        }
+        return result;
+    }
+
+    /**
      * Kiểm tra và hiển thị các giao dịch định kỳ đến hạn.
+     * 
      * @return danh sách giao dịch định kỳ đến hạn hôm nay
      */
     public List<RecurringExpense> checkDueRecurring() {
@@ -403,7 +640,8 @@ public class ExpenseManager {
                 recurring.getPaymentMethod());
     }
 
-    // ========== HELPER: Tính tổng chi tiêu theo danh mục trong tháng hiện tại ==========
+    // ========== HELPER: Tính tổng chi tiêu theo danh mục trong tháng hiện tại
+    // ==========
 
     /**
      * Tính tổng chi tiêu của một danh mục trong tháng hiện tại.
@@ -445,7 +683,8 @@ public class ExpenseManager {
 
     /**
      * Nhập dữ liệu đã load từ CSV vào manager.
-     * Hợp nhất (merge) Category và Wallet — nếu đã tồn tại thì dùng lại, không tạo trùng.
+     * Hợp nhất (merge) Category và Wallet — nếu đã tồn tại thì dùng lại, không tạo
+     * trùng.
      */
     public void importTransactions(List<Transaction> loadedTransactions) {
         for (Transaction t : loadedTransactions) {
