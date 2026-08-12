@@ -6,10 +6,19 @@ import java.time.LocalDate;
 
 public class RecurringExpense extends Expense {
     private Period period;
+    private LocalDate lastProcessedDate;
 
     public RecurringExpense(String id, double amount, String note, LocalDate date, Category category, Wallet wallet, String paymentMethod, Period period) {
         super(id, amount, note, date, category, wallet, paymentMethod);
         this.period = period;
+    }
+
+    public LocalDate getLastProcessedDate() {
+        return lastProcessedDate;
+    }
+
+    public void setLastProcessedDate(LocalDate lastProcessedDate) {
+        this.lastProcessedDate = lastProcessedDate;
     }
 
     /**

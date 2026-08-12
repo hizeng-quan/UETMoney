@@ -37,6 +37,9 @@
                 </VBox>
                 <HBox alignment="CENTER_RIGHT" spacing="10.0" HBox.hgrow="ALWAYS">
                     <children>
+                        <Button fx:id="btnImportCsv" style="-fx-background-color: #262626; -fx-text-fill: #2ed573; -fx-border-color: #2ed573; -fx-border-radius: 4; -fx-cursor: hand;" text="Nhập CSV" />
+                        <Button fx:id="btnExportJson" style="-fx-background-color: #262626; -fx-text-fill: #2ed573; -fx-border-color: #2ed573; -fx-border-radius: 4; -fx-cursor: hand;" text="Xuất JSON" />
+                        <Button fx:id="btnImportJson" style="-fx-background-color: #262626; -fx-text-fill: #2ed573; -fx-border-color: #2ed573; -fx-border-radius: 4; -fx-cursor: hand;" text="Nhập JSON" />
                         <Button fx:id="btnExportCsv" style="-fx-background-color: #262626; -fx-text-fill: #2ed573; -fx-border-color: #2ed573; -fx-border-radius: 4; -fx-cursor: hand;" text="Xuất CSV" />
                     </children>
                 </HBox>
@@ -57,6 +60,7 @@
                 <Button fx:id="btnNavBudget" alignment="BASELINE_LEFT" maxWidth="1.7976931348623157E308" prefHeight="40.0" style="-fx-background-color: transparent; -fx-text-fill: #e0e0e0; -fx-background-radius: 5; -fx-cursor: hand;" text="🎯  Ngân Sách" />
                 <Button fx:id="btnNavRecurring" alignment="BASELINE_LEFT" maxWidth="1.7976931348623157E308" prefHeight="40.0" style="-fx-background-color: transparent; -fx-text-fill: #e0e0e0; -fx-background-radius: 5; -fx-cursor: hand;" text="📅  Định Kỳ" />
                 <Button fx:id="btnNavStatistic" alignment="BASELINE_LEFT" maxWidth="1.7976931348623157E308" prefHeight="40.0" style="-fx-background-color: transparent; -fx-text-fill: #e0e0e0; -fx-background-radius: 5; -fx-cursor: hand;" text="📊  Thống Kê" />
+                <Button fx:id="btnNavCategory" alignment="BASELINE_LEFT" maxWidth="1.7976931348623157E308" prefHeight="40.0" style="-fx-background-color: transparent; -fx-text-fill: #e0e0e0; -fx-background-radius: 5; -fx-cursor: hand;" text="📁  Danh Mục" />
             </children>
         </VBox>
     </left>
@@ -99,12 +103,25 @@
                                 <!-- Bảng Hiển Thị -->
                                 <VBox spacing="10.0" HBox.hgrow="ALWAYS">
                                     <children>
-                                        <HBox spacing="10.0">
+                                        <VBox spacing="10.0">
                                             <children>
-                                                <TextField fx:id="txtSearch" promptText="Tìm kiếm giao dịch..." style="-fx-background-color: white; -fx-text-fill: black; -fx-prompt-text-fill: #707070; -fx-border-radius: 4;" HBox.hgrow="ALWAYS" />
-                                                <Button fx:id="btnSearch" style="-fx-background-color: #262626; -fx-text-fill: #2ed573; -fx-border-color: #2ed573; -fx-border-radius: 4; -fx-cursor: hand;" text="Tìm kiếm" />
+                                                <HBox spacing="10.0">
+                                                    <children>
+                                                        <TextField fx:id="txtSearch" promptText="Từ khóa (Ghi chú, ID, Ví, Danh mục)..." style="-fx-background-color: white; -fx-text-fill: black; -fx-prompt-text-fill: #707070; -fx-border-radius: 4;" HBox.hgrow="ALWAYS" />
+                                                        <Button fx:id="btnSearch" style="-fx-background-color: #262626; -fx-text-fill: #2ed573; -fx-border-color: #2ed573; -fx-border-radius: 4; -fx-cursor: hand;" text="Tìm kiếm" />
+                                                    </children>
+                                                </HBox>
+                                                <HBox spacing="10.0" alignment="CENTER_LEFT">
+                                                    <children>
+                                                        <DatePicker fx:id="dpSearchFrom" promptText="Từ ngày" prefWidth="130.0" style="-fx-background-color: white; -fx-control-inner-background: white;" />
+                                                        <DatePicker fx:id="dpSearchTo" promptText="Đến ngày" prefWidth="130.0" style="-fx-background-color: white; -fx-control-inner-background: white;" />
+                                                        <TextField fx:id="txtSearchMinAmount" promptText="Từ số tiền" prefWidth="120.0" style="-fx-background-color: white; -fx-text-fill: black; -fx-prompt-text-fill: #707070; -fx-border-radius: 4;" />
+                                                        <TextField fx:id="txtSearchMaxAmount" promptText="Đến số tiền" prefWidth="120.0" style="-fx-background-color: white; -fx-text-fill: black; -fx-prompt-text-fill: #707070; -fx-border-radius: 4;" />
+                                                        <Button fx:id="btnClearSearch" style="-fx-background-color: #ff4757; -fx-text-fill: white; -fx-font-weight: bold; -fx-border-radius: 4; -fx-cursor: hand;" text="Xóa lọc" />
+                                                    </children>
+                                                </HBox>
                                             </children>
-                                        </HBox>
+                                        </VBox>
                                         <TableView fx:id="tblTransactions" prefHeight="400.0" style="-fx-background-color: #1e1e1e;" VBox.vgrow="ALWAYS">
                                             <columns>
                                                 <TableColumn fx:id="colId" prefWidth="50.0" text="ID" />
@@ -208,15 +225,78 @@
                         </TableView>
                     </children>
                 </VBox>
-                <!-- VIEW 5: THỐNG KÊ & TẠO DANH MỤC -->
+                <!-- VIEW 5: THỐNG KÊ -->
                 <VBox fx:id="viewStatistic" spacing="15.0" visible="false">
                     <children>
+                        <!-- Thanh Công Cụ Bộ Lọc -->
+                        <HBox alignment="CENTER_LEFT" spacing="15.0" style="-fx-background-color: #1e1e1e; -fx-padding: 10; -fx-background-radius: 8;">
+                            <children>
+                                <Label text="Lọc theo:" textFill="WHITE"><font><Font name="System Bold" size="14.0" /></font></Label>
+                                <ComboBox fx:id="cbStatPeriod" prefWidth="120.0" promptText="Tháng / Năm" style="-fx-background-color: white;" />
+                                <DatePicker fx:id="dpStatDate" prefWidth="150.0" style="-fx-background-color: white;" />
+                                <Button fx:id="btnUpdateStat" style="-fx-background-color: #2ed573; -fx-text-fill: #121212; -fx-font-weight: bold; -fx-cursor: hand;" text="Xem Thống Kê" />
+                            </children>
+                        </HBox>
+                        
+                        <!-- Dashboard Tổng Quan Nâng Cao -->
+                        <HBox spacing="15.0">
+                            <children>
+                                <!-- Thẻ 1: Tổng Thu -->
+                                <VBox alignment="CENTER" prefHeight="80.0" style="-fx-background-color: #1e1e1e; -fx-background-radius: 8; -fx-border-color: #2ed573; -fx-border-width: 0 0 0 4; -fx-border-radius: 8;" HBox.hgrow="ALWAYS">
+                                    <children>
+                                        <Label text="Tổng Thu" textFill="#808080"><font><Font name="System Bold" size="12.0" /></font></Label>
+                                        <Label fx:id="lblStatTotalIncome" text="0 VNĐ" textFill="#2ed573"><font><Font name="System Bold" size="18.0" /></font></Label>
+                                    </children>
+                                </VBox>
+                                <!-- Thẻ 2: Tổng Chi -->
+                                <VBox alignment="CENTER" prefHeight="80.0" style="-fx-background-color: #1e1e1e; -fx-background-radius: 8; -fx-border-color: #ff4757; -fx-border-width: 0 0 0 4; -fx-border-radius: 8;" HBox.hgrow="ALWAYS">
+                                    <children>
+                                        <Label text="Tổng Chi" textFill="#808080"><font><Font name="System Bold" size="12.0" /></font></Label>
+                                        <Label fx:id="lblStatTotalExpense" text="0 VNĐ" textFill="#ff4757"><font><Font name="System Bold" size="18.0" /></font></Label>
+                                    </children>
+                                </VBox>
+                                <!-- Thẻ 3: Chênh lệch -->
+                                <VBox alignment="CENTER" prefHeight="80.0" style="-fx-background-color: #1e1e1e; -fx-background-radius: 8; -fx-border-color: #ffa502; -fx-border-width: 0 0 0 4; -fx-border-radius: 8;" HBox.hgrow="ALWAYS">
+                                    <children>
+                                        <Label text="Chênh Lệch" textFill="#808080"><font><Font name="System Bold" size="12.0" /></font></Label>
+                                        <Label fx:id="lblStatBalance" text="0 VNĐ" textFill="#ffa502"><font><Font name="System Bold" size="18.0" /></font></Label>
+                                    </children>
+                                </VBox>
+                            </children>
+                        </HBox>
+
+                        <HBox spacing="15.0">
+                            <children>
+                                <!-- Thẻ 4: Chi Lớn Nhất -->
+                                <VBox alignment="CENTER" prefHeight="80.0" style="-fx-background-color: #1e1e1e; -fx-background-radius: 8; -fx-border-color: #ff6b81; -fx-border-width: 0 0 0 4; -fx-border-radius: 8;" HBox.hgrow="ALWAYS">
+                                    <children>
+                                        <Label text="Giao Dịch Chi Max" textFill="#808080"><font><Font name="System Bold" size="12.0" /></font></Label>
+                                        <Label fx:id="lblStatMaxExpense" text="0 VNĐ" textFill="WHITE"><font><Font name="System Bold" size="14.0" /></font></Label>
+                                    </children>
+                                </VBox>
+                                <!-- Thẻ 5: Chi Nhỏ Nhất -->
+                                <VBox alignment="CENTER" prefHeight="80.0" style="-fx-background-color: #1e1e1e; -fx-background-radius: 8; -fx-border-color: #7bed9f; -fx-border-width: 0 0 0 4; -fx-border-radius: 8;" HBox.hgrow="ALWAYS">
+                                    <children>
+                                        <Label text="Giao Dịch Chi Min" textFill="#808080"><font><Font name="System Bold" size="12.0" /></font></Label>
+                                        <Label fx:id="lblStatMinExpense" text="0 VNĐ" textFill="WHITE"><font><Font name="System Bold" size="14.0" /></font></Label>
+                                    </children>
+                                </VBox>
+                                <!-- Thẻ 6: Top Danh Mục -->
+                                <VBox alignment="CENTER" prefHeight="80.0" style="-fx-background-color: #1e1e1e; -fx-background-radius: 8; -fx-border-color: #70a1ff; -fx-border-width: 0 0 0 4; -fx-border-radius: 8;" HBox.hgrow="ALWAYS">
+                                    <children>
+                                        <Label text="Top 1 Tiêu Tốn" textFill="#808080"><font><Font name="System Bold" size="12.0" /></font></Label>
+                                        <Label fx:id="lblStatTopCategory" text="Không có" textFill="WHITE"><font><Font name="System Bold" size="14.0" /></font></Label>
+                                    </children>
+                                </VBox>
+                            </children>
+                        </HBox>
+
+                        <!-- Biểu Đồ & Tình trạng -->
                         <StackPane style="-fx-background-color: #1e1e1e; -fx-background-radius: 8; -fx-padding: 10;" VBox.vgrow="ALWAYS">
                             <children>
                                 <HBox spacing="15.0" style="-fx-background-color: #1e1e1e; -fx-background-radius: 8; -fx-padding: 15;" VBox.vgrow="ALWAYS">
                                     <children>
                                         <PieChart fx:id="chartExpenseByCategory" title="Phân Bổ Chi Tiêu" HBox.hgrow="ALWAYS" />
-
                                         <VBox alignment="CENTER" prefWidth="300.0" spacing="10.0" style="-fx-border-color: #333333; -fx-border-width: 2; -fx-border-radius: 10;">
                                             <children>
                                                 <Label text="TÌNH TRẠNG CHI TIÊU" textFill="#808080">
@@ -232,8 +312,13 @@
                                 </HBox>
                             </children>
                         </StackPane>
+                    </children>
+                </VBox>
 
-                        <HBox prefHeight="220.0" spacing="15.0">
+                <!-- VIEW 6: DANH MỤC (Tách ra từ Thống kê cũ) -->
+                <VBox fx:id="viewCategory" spacing="15.0" visible="false">
+                    <children>
+                        <HBox prefHeight="600.0" spacing="15.0" VBox.vgrow="ALWAYS">
                             <children>
                                 <VBox prefWidth="350.0" spacing="10.0" style="-fx-background-color: #1e1e1e; -fx-padding: 15; -fx-background-radius: 8; -fx-border-color: #333333; -fx-border-radius: 8;">
                                     <children>

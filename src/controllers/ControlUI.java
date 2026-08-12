@@ -35,6 +35,9 @@ public class ControlUI implements Initializable {
     @FXML private Button btnToggleMenu;
     @FXML private Label lblTotalBalance;
     @FXML private Button btnExportCsv;
+    @FXML private Button btnImportCsv;
+    @FXML private Button btnExportJson;
+    @FXML private Button btnImportJson;
 
     // Sidebar Nav Buttons
     @FXML private Button btnNavTransaction;
@@ -42,6 +45,7 @@ public class ControlUI implements Initializable {
     @FXML private Button btnNavBudget;
     @FXML private Button btnNavStatistic;
     @FXML private Button btnNavRecurring;
+    @FXML private Button btnNavCategory;
     @FXML private VBox sideMenu;
 
     // View Containers (Views)
@@ -50,6 +54,7 @@ public class ControlUI implements Initializable {
     @FXML private VBox viewBudget;
     @FXML private VBox viewStatistic;
     @FXML private VBox viewRecurring;
+    @FXML private VBox viewCategory;
 
     // View 1: Giao Dịch
     @FXML private TextField txtAmount;
@@ -63,6 +68,11 @@ public class ControlUI implements Initializable {
     @FXML private Button btnDeleteTransaction;
     @FXML private TextField txtSearch;
     @FXML private Button btnSearch;
+    @FXML private DatePicker dpSearchFrom;
+    @FXML private DatePicker dpSearchTo;
+    @FXML private TextField txtSearchMinAmount;
+    @FXML private TextField txtSearchMaxAmount;
+    @FXML private Button btnClearSearch;
     @FXML private TableView<Transaction> tblTransactions;
     @FXML private TableColumn<Transaction, String> colId;
     @FXML private TableColumn<Transaction, String> colType;
@@ -108,8 +118,22 @@ public class ControlUI implements Initializable {
     @FXML private TableColumn<RecurringExpense, LocalDate> colRecurNextDate;
     @FXML private TableColumn<RecurringExpense, String> colRecurWallet;
 
-    // View 5: Thống Kê & Danh Mục
+    // View 5: Thống Kê (Mới)
     @FXML private PieChart chartExpenseByCategory;
+    @FXML private ImageView imgBudgetStatus;
+    @FXML private Label lblBudgetMascotText;
+    @FXML private DatePicker dpStatDate;
+    @FXML private ComboBox<String> cbStatPeriod;
+    @FXML private Button btnUpdateStat;
+
+    @FXML private Label lblStatTotalIncome;
+    @FXML private Label lblStatTotalExpense;
+    @FXML private Label lblStatBalance;
+    @FXML private Label lblStatMaxExpense;
+    @FXML private Label lblStatMinExpense;
+    @FXML private Label lblStatTopCategory;
+
+    // View 6: Danh Mục
     @FXML private TextField txtCategoryName;
     @FXML private ComboBox<TransactionType> cbCategoryGroup;
     @FXML private Button btnAddCategory;
@@ -118,9 +142,6 @@ public class ControlUI implements Initializable {
     @FXML private TableColumn<Category, String> colCategoryName;
     @FXML private TableColumn<Category, TransactionType> colCategoryGroup;
     @FXML private TableColumn<Category, String> colCategoryNote;
-    @FXML private ImageView imgBudgetStatus;
-    @FXML private Label lblBudgetMascotText;
-    @FXML private DatePicker dpStatDate;
 
 
     // Ảnh
@@ -148,6 +169,16 @@ public class ControlUI implements Initializable {
     // ==========================================
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        // Nạp dữ liệu khi khởi động UI
+        expenseManager.setStorage(new CsvStorage());
+        expenseManager.loadAllData();
+
+        // Đăng ký lưu dữ liệu tự động khi đóng ứng dụng
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Đang lưu dữ liệu trước khi thoát (UI)...");
+            expenseManager.saveAllData();
+        }));
+
         loadImages();
         setupTableColumns();
         setupComboBoxes();
@@ -287,6 +318,9 @@ public class ControlUI implements Initializable {
         cbPeriod.setItems(FXCollections.observableArrayList(Period.values()));
         cbBudgetPeriod.setItems(FXCollections.observableArrayList(Period.values()));
 
+        cbStatPeriod.setItems(FXCollections.observableArrayList("Theo Tháng", "Theo Năm"));
+        cbStatPeriod.setValue("Theo Tháng");
+
         cbWallet.setConverter(new javafx.util.StringConverter<Wallet>() {
         @Override
         public String toString(Wallet wallet) {
@@ -312,6 +346,7 @@ public class ControlUI implements Initializable {
         btnNavBudget.setOnAction(e -> switchView(viewBudget, btnNavBudget));
         btnNavRecurring.setOnAction(e -> switchView(viewRecurring, btnNavRecurring));
         btnNavStatistic.setOnAction(e -> switchView(viewStatistic, btnNavStatistic));
+        btnNavCategory.setOnAction(e -> switchView(viewCategory, btnNavCategory));
 
         // Nút Toggle Thu/Phóng Menu Sidebar
         btnToggleMenu.setOnAction(e -> {
@@ -337,8 +372,9 @@ public class ControlUI implements Initializable {
         viewBudget.setVisible(activeView == viewBudget);
         viewRecurring.setVisible(activeView == viewRecurring);
         viewStatistic.setVisible(activeView == viewStatistic);
+        viewCategory.setVisible(activeView == viewCategory);
 
-        Button[] navButtons = {btnNavTransaction, btnNavWallet, btnNavBudget, btnNavRecurring, btnNavStatistic};
+        Button[] navButtons = {btnNavTransaction, btnNavWallet, btnNavBudget, btnNavRecurring, btnNavStatistic, btnNavCategory};
         for (Button btn : navButtons) {
             if (btn == activeBtn) {
                 btn.setStyle("-fx-background-color: #2ed573; -fx-text-fill: #121212; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand;");
@@ -348,7 +384,7 @@ public class ControlUI implements Initializable {
         }
 
         if (activeView == viewStatistic) {
-            updatePieChart();
+            updateStatisticsView();
         }
     }
 
@@ -360,6 +396,7 @@ public class ControlUI implements Initializable {
         btnAddTransaction.setOnAction(e -> handleAddTransaction());
         btnDeleteTransaction.setOnAction(e -> handleDeleteTransaction());
         btnSearch.setOnAction(e -> handleSearchTransaction());
+        btnClearSearch.setOnAction(e -> handleClearSearch());
 
         // Ví
         btnAddWallet.setOnAction(e -> handleAddWallet());
@@ -404,8 +441,14 @@ public class ControlUI implements Initializable {
             }
         });
 
-        // Xuất File
+        // Thống Kê
+        btnUpdateStat.setOnAction(e -> updateStatisticsView());
+
+        // Xuất/Nhập File
         btnExportCsv.setOnAction(event -> handleExportCsv());
+        btnImportCsv.setOnAction(event -> handleImportCsv());
+        btnExportJson.setOnAction(event -> handleExportJson());
+        btnImportJson.setOnAction(event -> handleImportJson());
 
         tblTransactions.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
             if (newSel != null) {
@@ -494,22 +537,69 @@ public class ControlUI implements Initializable {
 
     private void handleSearchTransaction() {
         String keyword = txtSearch.getText().trim().toLowerCase();
-        if (keyword.isEmpty()) {
-            refreshAllViews();
+        LocalDate fromDate = dpSearchFrom.getValue();
+        LocalDate toDate = dpSearchTo.getValue();
+
+        Double minAmount = null;
+        Double maxAmount = null;
+        try {
+            if (!txtSearchMinAmount.getText().trim().isEmpty()) {
+                minAmount = Double.parseDouble(txtSearchMinAmount.getText().trim());
+            }
+            if (!txtSearchMaxAmount.getText().trim().isEmpty()) {
+                maxAmount = Double.parseDouble(txtSearchMaxAmount.getText().trim());
+            }
+        } catch (NumberFormatException e) {
+            showAlert(Alert.AlertType.WARNING, "Lỗi nhập liệu", "Số tiền lọc phải là một số hợp lệ!");
             return;
         }
 
         List<Transaction> filtered = new ArrayList<>();
         List<Transaction> allTransactions = expenseManager.getTransactions();
+
         for (Transaction t : allTransactions) {
-            if (t.getNote().toLowerCase().contains(keyword) ||
-                    t.getCategory().getName().toLowerCase().contains(keyword) ||
-                    t.getWallet().getName().toLowerCase().contains(keyword) ||
-                    t.getId().toLowerCase().contains(keyword)) {
+            boolean match = true;
+
+            // Lọc từ khóa
+            if (!keyword.isEmpty()) {
+                if (!(t.getNote().toLowerCase().contains(keyword) ||
+                      t.getCategory().getName().toLowerCase().contains(keyword) ||
+                      t.getWallet().getName().toLowerCase().contains(keyword) ||
+                      t.getId().toLowerCase().contains(keyword))) {
+                    match = false;
+                }
+            }
+
+            // Lọc ngày
+            if (fromDate != null && t.getDate().isBefore(fromDate)) {
+                match = false;
+            }
+            if (toDate != null && t.getDate().isAfter(toDate)) {
+                match = false;
+            }
+
+            // Lọc số tiền
+            if (minAmount != null && Math.abs(t.getAmount()) < minAmount) {
+                match = false;
+            }
+            if (maxAmount != null && Math.abs(t.getAmount()) > maxAmount) {
+                match = false;
+            }
+
+            if (match) {
                 filtered.add(t);
             }
         }
         transactionList.setAll(filtered);
+    }
+
+    private void handleClearSearch() {
+        txtSearch.clear();
+        dpSearchFrom.setValue(null);
+        dpSearchTo.setValue(null);
+        txtSearchMinAmount.clear();
+        txtSearchMaxAmount.clear();
+        refreshAllViews();
     }
 
     private void handleAddWallet() {
@@ -595,47 +685,103 @@ public class ControlUI implements Initializable {
         }
     }
 
-    private void handleExport(String format) {
-        // Thực thi tính năng gọi Storage theo sơ đồ UML
-        showAlert(Alert.AlertType.INFORMATION, "Xuất dữ liệu", "Đã xuât dữ liệu thành công dưới định dạng " + format);
-    }
-
     private void handleExportCsv() {
-        // 1. Kiểm tra nếu danh sách giao dịch đang rỗng thì cảnh báo luôn cho đỡ mất công
         if (expenseManager.getTransactions() == null || expenseManager.getTransactions().isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "Cảnh báo", "Không có dữ liệu giao dịch nào để xuất!");
             return;
         }
 
-        // 2. Khởi tạo Hộp thoại lưu file (FileChooser)
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Chọn nơi lưu file CSV");
-
-        // Đặt tên file gợi ý mặc định
+        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
         fileChooser.setInitialFileName("danh_sach_chi_tieu_" + java.time.LocalDate.now() + ".csv");
-
-        // Chỉ định bộ lọc file để người dùng bắt buộc lưu đuôi .csv
         fileChooser.getExtensionFilters().add(
                 new FileChooser.ExtensionFilter("CSV Files (*.csv)", "*.csv")
         );
 
-        // 3. Hiển thị hộp thoại (lấy Window từ bất kỳ node nào trên UI, ví dụ txtWalletName hoặc nút bấm)
         File file = fileChooser.showSaveDialog(txtWalletName.getScene().getWindow());
 
         if (file != null) {
             try {
-                // 4. Gọi CsvStorage để lưu dữ liệu
                 CsvStorage csvStorage = new CsvStorage();
-                csvStorage.save(expenseManager.getTransactions(), file.getAbsolutePath());
+                csvStorage.saveTransactions(expenseManager.getTransactions(), file.getAbsolutePath());
 
-                // 5. Hiển thị thông báo thành công
                 showAlert(Alert.AlertType.INFORMATION, "Thành công",
                         "Xuất dữ liệu ra file CSV thành công!\nĐường dẫn: " + file.getAbsolutePath());
 
             } catch (Exception e) {
-                // Hiển thị thông báo nếu có lỗi trong quá trình ghi file (quyền ghi file, thư mục khóa...)
                 showAlert(Alert.AlertType.ERROR, "Lỗi hệ thống",
                         "Không thể xuất file CSV. Vui lòng thử lại!\nChi tiết: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void handleImportCsv() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Chọn file CSV để nạp giao dịch");
+        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files (*.csv)", "*.csv"));
+        File file = fileChooser.showOpenDialog(txtWalletName.getScene().getWindow());
+
+        if (file != null) {
+            try {
+                CsvStorage csvStorage = new CsvStorage();
+                List<Transaction> imported = csvStorage.loadTransactions(file.getAbsolutePath(), expenseManager.getCategories(), expenseManager.getWallets());
+                for (Transaction t : imported) {
+                    expenseManager.addTransaction(t);
+                }
+                refreshAllViews();
+                showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đã nạp " + imported.size() + " giao dịch từ file CSV!");
+            } catch (Exception e) {
+                showAlert(Alert.AlertType.ERROR, "Lỗi nhập liệu", "Không thể nạp file CSV!\nChi tiết: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void handleExportJson() {
+        if (expenseManager.getTransactions() == null || expenseManager.getTransactions().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Cảnh báo", "Không có dữ liệu giao dịch nào để xuất!");
+            return;
+        }
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Chọn nơi lưu file JSON");
+        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+        fileChooser.setInitialFileName("danh_sach_chi_tieu_" + java.time.LocalDate.now() + ".json");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON Files (*.json)", "*.json"));
+        File file = fileChooser.showSaveDialog(txtWalletName.getScene().getWindow());
+
+        if (file != null) {
+            try {
+                storage.JsonStorage jsonStorage = new storage.JsonStorage();
+                jsonStorage.saveTransactions(expenseManager.getTransactions(), file.getAbsolutePath());
+                showAlert(Alert.AlertType.INFORMATION, "Thành công", "Xuất dữ liệu ra file JSON thành công!\nĐường dẫn: " + file.getAbsolutePath());
+            } catch (Exception e) {
+                showAlert(Alert.AlertType.ERROR, "Lỗi hệ thống", "Không thể xuất file JSON. Vui lòng thử lại!\nChi tiết: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void handleImportJson() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Chọn file JSON để nạp giao dịch");
+        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON Files (*.json)", "*.json"));
+        File file = fileChooser.showOpenDialog(txtWalletName.getScene().getWindow());
+
+        if (file != null) {
+            try {
+                storage.JsonStorage jsonStorage = new storage.JsonStorage();
+                List<Transaction> imported = jsonStorage.loadTransactions(file.getAbsolutePath(), expenseManager.getCategories(), expenseManager.getWallets());
+                for (Transaction t : imported) {
+                    expenseManager.addTransaction(t);
+                }
+                refreshAllViews();
+                showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đã nạp " + imported.size() + " giao dịch từ file JSON!");
+            } catch (Exception e) {
+                showAlert(Alert.AlertType.ERROR, "Lỗi nhập liệu", "Không thể nạp file JSON!\nChi tiết: " + e.getMessage());
                 e.printStackTrace();
             }
         }
@@ -696,38 +842,98 @@ public class ControlUI implements Initializable {
         updateBudgetStatusImage();
 
         // Cập nhật biểu đồ
-        updatePieChart();
+        updateStatisticsView();
     }
 
-    private void updatePieChart() {
+    private void updateStatisticsView() {
         if (chartExpenseByCategory == null) return;
 
         LocalDate filterDate = (dpStatDate != null && dpStatDate.getValue() != null)
-                ? dpStatDate.getValue() : LocalDate.now();
+                ? dpStatDate.getValue()
+                : LocalDate.now();
 
         int month = filterDate.getMonthValue();
         int year = filterDate.getYear();
+        boolean isYearly = "Theo Năm".equals(cbStatPeriod.getValue());
 
         List<Transaction> transactions = expenseManager.getTransactions();
+        List<Transaction> filteredT = new ArrayList<>();
 
-        // Lọc giao dịch
-        Map<String, Double> categorySum = new HashMap<>();
         for (Transaction t : transactions) {
-            if (t.getType() == TransactionType.EXPENSE
-                    && t.getDate().getMonthValue() == month
-                    && t.getDate().getYear() == year) {
+            boolean match = t.getDate().getYear() == year;
+            if (!isYearly) {
+                match = match && t.getDate().getMonthValue() == month;
+            }
+            if (match) filteredT.add(t);
+        }
+
+        double totalIncome = 0;
+        double totalExpense = 0;
+        double maxExpense = 0;
+        double minExpense = Double.MAX_VALUE;
+        Transaction maxT = null;
+        Transaction minT = null;
+
+        Map<String, Double> categorySum = new HashMap<>();
+
+        for (Transaction t : filteredT) {
+            if (t.getType() == TransactionType.INCOME) {
+                totalIncome += t.getAmount();
+            } else if (t.getType() == TransactionType.EXPENSE) {
+                double amt = t.getAmount();
+                totalExpense += amt;
+
+                if (amt > maxExpense) {
+                    maxExpense = amt;
+                    maxT = t;
+                }
+                if (amt < minExpense) {
+                    minExpense = amt;
+                    minT = t;
+                }
 
                 String catName = t.getCategory().getName();
-                categorySum.put(catName, categorySum.getOrDefault(catName, 0.0) + t.getAmount());
+                categorySum.put(catName, categorySum.getOrDefault(catName, 0.0) + amt);
             }
         }
 
-        // Đưa dữ liệu lên biểu đồ
+        if (minExpense == Double.MAX_VALUE) minExpense = 0;
+
+        if (lblStatTotalIncome != null) lblStatTotalIncome.setText(String.format("%,.0f VNĐ", totalIncome));
+        if (lblStatTotalExpense != null) lblStatTotalExpense.setText(String.format("%,.0f VNĐ", totalExpense));
+        if (lblStatBalance != null) lblStatBalance.setText(String.format("%,.0f VNĐ", totalIncome - totalExpense));
+
+        if (lblStatMaxExpense != null) {
+            String maxNote = (maxT != null && maxT.getNote() != null && !maxT.getNote().trim().isEmpty()) ? " (" + maxT.getNote() + ")" : "";
+            lblStatMaxExpense.setText(maxT != null ? String.format("%,.0f VNĐ%s", maxExpense, maxNote) : "0 VNĐ");
+        }
+        
+        if (lblStatMinExpense != null) {
+            String minNote = (minT != null && minT.getNote() != null && !minT.getNote().trim().isEmpty()) ? " (" + minT.getNote() + ")" : "";
+            lblStatMinExpense.setText(minT != null ? String.format("%,.0f VNĐ%s", minExpense, minNote) : "0 VNĐ");
+        }
+
+        // Tìm Top 1 Danh Mục
+        String topCat = "Không có";
+        double maxCatSum = 0;
         ObservableList<PieChart.Data> pieChartData = FXCollections.observableArrayList();
-        categorySum.forEach((cat, sum) -> pieChartData.add(new PieChart.Data(cat, sum)));
+
+        for (Map.Entry<String, Double> entry : categorySum.entrySet()) {
+            pieChartData.add(new PieChart.Data(entry.getKey(), entry.getValue()));
+            if (entry.getValue() > maxCatSum) {
+                maxCatSum = entry.getValue();
+                topCat = entry.getKey();
+            }
+        }
+
+        if (lblStatTopCategory != null) lblStatTopCategory.setText(topCat.equals("Không có") ? topCat : String.format("%s (%,.0f VNĐ)", topCat, maxCatSum));
 
         chartExpenseByCategory.setData(pieChartData);
-        chartExpenseByCategory.setTitle("Thống kê chi tiêu tháng " + month + "/" + year);
+        if (isYearly) {
+            chartExpenseByCategory.setTitle("Thống kê chi tiêu năm " + year);
+        } else {
+            chartExpenseByCategory.setTitle("Thống kê chi tiêu tháng " + month + "/" + year);
+        }
     }
 
     private void updateBudgetStatusImage() {
