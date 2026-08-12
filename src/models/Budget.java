@@ -31,9 +31,10 @@ public class Budget {
     }
 
     public void setLimit(double limit) {
-        if (limit > 0) {
-            this.limit = limit;
+        if (limit <= 0) {
+            throw new IllegalArgumentException("Hạn mức ngân sách phải lớn hơn 0!");
         }
+        this.limit = limit;
     }
 
     public Period getPeriod() {
