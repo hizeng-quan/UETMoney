@@ -444,13 +444,23 @@ public class ControlUI implements Initializable {
                     + catPart + "-" + randomPart;
             Transaction t;
 
+            String source = category.getName();
+            String paymentMethod;
+            if (wallet instanceof BankAccount) {
+                paymentMethod = "Chuyển khoản - " + ((BankAccount) wallet).getBankName();
+            } else if (wallet instanceof EWallet) {
+                paymentMethod = ((EWallet) wallet).getProvider();
+            } else {
+                paymentMethod = "Tiền mặt";
+            }
+
             if (category.getType() == TransactionType.INCOME) {
-                t = new Income(id, amount, date, category, note, wallet, "Nguồn thu chính");
+                t = new Income(id, amount, date, category, note, wallet, source);
             } else {
                 if (period != null) {
-                    t = new RecurringExpense(id, amount, note, date, category, wallet, "Chuyển khoản", period);
+                    t = new RecurringExpense(id, amount, note, date, category, wallet, paymentMethod, period);
                 } else {
-                    t = new Expense(id, amount, note, date, category, wallet, "Chuyển khoản");
+                    t = new Expense(id, amount, note, date, category, wallet, paymentMethod);
                 }
             }
 

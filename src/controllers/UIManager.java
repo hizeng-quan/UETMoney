@@ -384,8 +384,12 @@ public class UIManager {
         if (step == 0) {
             System.out.println("Đã hủy quá trình thêm danh mục.");
         } else {
-            manager.addCategory(new Category(cName, type));
-            System.out.println("=> ĐÃ THÊM DANH MỤC THÀNH CÔNG: " + cName);
+            try {
+                manager.addCategory(new Category(cName, type));
+                System.out.println("=> ĐÃ THÊM DANH MỤC THÀNH CÔNG: " + cName);
+            } catch (IllegalArgumentException e) {
+                System.out.println("Lỗi: " + e.getMessage());
+            }
         }
     }
 
