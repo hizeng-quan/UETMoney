@@ -106,6 +106,7 @@ public class ControlUI implements Initializable {
     @FXML private TableView<BudgetWrapper> tblBudgets;
     @FXML private TableColumn<BudgetWrapper, String> colBudgetCategory;
     @FXML private TableColumn<BudgetWrapper, Double> colBudgetLimit;
+    @FXML private TableColumn<BudgetWrapper, Double> colBudgetSpent;
     @FXML private TableColumn<BudgetWrapper, Period> colBudgetPeriod;
     @FXML private TableColumn<BudgetWrapper, String> colBudgetStatus;
 
@@ -266,6 +267,31 @@ public class ControlUI implements Initializable {
         colBudgetLimit.setCellValueFactory(cell -> new javafx.beans.property.SimpleObjectProperty<>(
                 cell.getValue().getBudget().getLimit()
         ));
+        colBudgetLimit.setCellFactory(tc -> new TableCell<BudgetWrapper, Double>() {
+            @Override
+            protected void updateItem(Double amount, boolean empty) {
+                super.updateItem(amount, empty);
+                if (empty || amount == null) {
+                    setText(null);
+                } else {
+                    setText(String.format("%,.0f VNĐ", amount));
+                }
+            }
+        });
+        colBudgetSpent.setCellValueFactory(cell -> new javafx.beans.property.SimpleObjectProperty<>(
+                cell.getValue().getSpentAmount()
+        ));
+        colBudgetSpent.setCellFactory(tc -> new TableCell<BudgetWrapper, Double>() {
+            @Override
+            protected void updateItem(Double amount, boolean empty) {
+                super.updateItem(amount, empty);
+                if (empty || amount == null) {
+                    setText(null);
+                } else {
+                    setText(String.format("%,.0f VNĐ", amount));
+                }
+            }
+        });
         colBudgetPeriod.setCellValueFactory(cell -> new javafx.beans.property.SimpleObjectProperty<>(
                 cell.getValue().getBudget().getPeriod()
         ));
@@ -385,6 +411,24 @@ public class ControlUI implements Initializable {
 
         if (activeView == viewStatistic) {
             updateStatisticsView();
+        }
+    }
+
+    private void checkBudgetAlerts(Category currentCategory) {
+        StringBuilder alerts = new StringBuilder();
+        for (BudgetWrapper bw : budgetList) {
+            if (currentCategory != null && !bw.getBudget().getCategory().equals(currentCategory)) continue;
+            
+            double spent = bw.getSpentAmount();
+            double limit = bw.getBudget().getLimit();
+            if (spent > limit) {
+                alerts.append("Vượt hạn mức: ").append(bw.getBudget().getCategory().getName()).append(" (Đã chi ").append(String.format("%,.0f", spent)).append(" / ").append(String.format("%,.0f", limit)).append(")\n");
+            } else if (spent >= limit * 0.8) {
+                alerts.append("Gần vượt mức: ").append(bw.getBudget().getCategory().getName()).append(" (Đã chi ").append(String.format("%,.0f", spent)).append(" / ").append(String.format("%,.0f", limit)).append(")\n");
+            }
+        }
+        if (alerts.length() > 0) {
+            showAlert(Alert.AlertType.WARNING, "Cảnh báo Ngân Sách", alerts.toString());
         }
     }
 
@@ -515,6 +559,11 @@ public class ControlUI implements Initializable {
             refreshAllViews();
             clearTransactionForm();
             showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đã thêm giao dịch thành công!");
+
+            // Kiểm tra cảnh báo ngân sách cho danh mục vừa thêm
+            if (category.getType() == TransactionType.EXPENSE) {
+                checkBudgetAlerts(category);
+            }
 
         } catch (InsufficientBalanceException e) {
             // Bắt lỗi không đủ số dư từ ExpenseManager và báo lên màn hình
@@ -827,7 +876,7 @@ public class ControlUI implements Initializable {
             boolean isExceeded = b.isExceeded(totalSpentThisMonth);
             String status = isExceeded ? " VƯỢT MỨC (" + String.format("%,.0f", totalSpentThisMonth) + ")" : " An toàn";
 
-            bList.add(new BudgetWrapper(b, status));
+            bList.add(new BudgetWrapper(b, status, totalSpentThisMonth));
         });
         budgetList.setAll(bList);
 
@@ -1034,13 +1083,16 @@ public class ControlUI implements Initializable {
     public static class BudgetWrapper {
         private final Budget budget;
         private final String statusText;
+        private final double spentAmount;
 
-        public BudgetWrapper(Budget budget, String statusText) {
+        public BudgetWrapper(Budget budget, String statusText, double spentAmount) {
             this.budget = budget;
             this.statusText = statusText;
+            this.spentAmount = spentAmount;
         }
 
         public Budget getBudget() { return budget; }
         public String getStatusText() { return statusText; }
+        public double getSpentAmount() { return spentAmount; }
     }
 }
