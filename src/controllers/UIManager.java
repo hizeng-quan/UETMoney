@@ -1,6 +1,5 @@
-package ConsoleUI;
+package controllers;
 
-import controllers.ExpenseManager;
 import enums.Period;
 import enums.TransactionType;
 import exception.InsufficientBalanceException;

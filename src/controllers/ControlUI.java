@@ -1,6 +1,5 @@
-package ControllerUI;
+package controllers;
 
-import controllers.ExpenseManager;
 import exception.InsufficientBalanceException;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -9,7 +8,6 @@ import models.*;
 import enums.Period;
 import enums.TransactionType;
 import enums.WalletType;
-import interfaces.Storage;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -21,8 +19,6 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.VBox;
 import storage.CsvStorage;
 
-import javax.management.Attribute;
-import javax.xml.stream.XMLStreamReader;
 import java.io.File;
 import java.net.URL;
 import java.time.LocalDate;
