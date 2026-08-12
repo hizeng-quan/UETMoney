@@ -1,5 +1,6 @@
 package controllers;
 
+import enums.TransactionType;
 import exception.InsufficientBalanceException;
 import interfaces.Storage;
 import models.*;
@@ -11,10 +12,8 @@ import java.util.Map;
 import java.util.HashMap;
 
 /**
- * Lớp điều phối trung tâm: quản lý danh sách Transaction, Wallet, Category,
- * Budget.
- * Tham chiếu tới Storage (interface) để lưu/nạp dữ liệu — không phụ thuộc cài
- * đặt cụ thể.
+ * Lớp điều phối trung tâm: quản lý danh sách Transaction, Wallet, Category, Budget.
+ * Tham chiếu tới Storage (interface) để lưu/nạp dữ liệu — không phụ thuộc cài đặt cụ thể.
  */
 public class ExpenseManager {
     private List<Transaction> transactions;
@@ -39,8 +38,7 @@ public class ExpenseManager {
 
     /**
      * Gán Storage implementation (CsvStorage hoặc JsonStorage).
-     * Thể hiện tính đa hình: ExpenseManager dùng interface, không biết cài đặt cụ
-     * thể.
+     * Thể hiện tính đa hình: ExpenseManager dùng interface, không biết cài đặt cụ thể.
      */
     public void setStorage(Storage storage) {
         this.storage = storage;
@@ -125,7 +123,7 @@ public class ExpenseManager {
 
     public void addWallet(Wallet wallet) {
         wallets.add(wallet);
-        System.out.println("Da them vi: " + wallet.getName());
+        System.out.println("Đã thêm ví: " + wallet.getName());
     }
 
     public void addCategory(Category category) {
@@ -222,15 +220,15 @@ public class ExpenseManager {
             }
 
             transactions.remove(target);
-            System.out.println("Da xoa giao dich " + id + " va cap nhat lai so du!");
+            System.out.println("Đã xóa giao dịch " + id + " và cập nhật lại số dư!");
         } else {
-            System.out.println("Khong tim thay giao dich ma " + id);
+            System.out.println("Không tìm thấy giao dịch mã " + id);
         }
     }
 
     public void displayAllTransactions() {
         if (transactions.isEmpty()) {
-            System.out.println("Chua co giao dich nao.");
+            System.out.println("Chưa có giao dịch nào.");
             return;
         }
         System.out.println("LỊCH SỬ GIAO DỊCH");
@@ -334,32 +332,23 @@ public class ExpenseManager {
         return result;
     }
 
-    // ========== ADVANCED STATISTICS ==========
-
-    /**
-     * Thống kê chi tiêu theo từng danh mục.
-     * 
-     * @return Map<tên danh mục, tổng chi tiêu>
-     */
-    public Map<String, Double> statisticsByCategory() {
-        Map<String, Double> result = new LinkedHashMap<>();
+    public void advancedStatistics(int month, int year) {
+        List<Expense> monthlyExpenses = new ArrayList<>();
+        Map<String, Double> categorySum = new HashMap<>();
 
         for (Transaction t : transactions) {
-            if (t.getType() == TransactionType.EXPENSE) {
-                String catName = t.getCategory().getName();
-                result.put(catName, result.getOrDefault(catName, 0.0) + t.getAmount());
+            if (t instanceof Expense && t.getDate().getMonthValue() == month && t.getDate().getYear() == year) {
+                Expense exp = (Expense) t;
+                monthlyExpenses.add(exp);
+
+                String catName = exp.getCategory().getName();
+                double amount = Math.abs(exp.getSignedAmount());
+                categorySum.put(catName, categorySum.getOrDefault(catName, 0.0) + amount);
             }
         }
-        return result;
-    }
 
-    /**
-     * Hiển thị chi tiêu theo từng danh mục.
-     */
-    public void displayStatisticsByCategory() {
-        Map<String, Double> stats = statisticsByCategory();
-        if (stats.isEmpty()) {
-            System.out.println("Chua co giao dich chi tieu nao.");
+        if (monthlyExpenses.isEmpty()) {
+            System.out.println("Không có khoản chi tiêu nào trong tháng " + month + "/" + year);
             return;
         }
 
@@ -367,10 +356,8 @@ public class ExpenseManager {
         Expense maxExp = monthlyExpenses.get(0);
         Expense minExp = monthlyExpenses.get(0);
         for (Expense e : monthlyExpenses) {
-            if (Math.abs(e.getSignedAmount()) > Math.abs(maxExp.getSignedAmount()))
-                maxExp = e;
-            if (Math.abs(e.getSignedAmount()) < Math.abs(minExp.getSignedAmount()))
-                minExp = e;
+            if (Math.abs(e.getSignedAmount()) > Math.abs(maxExp.getSignedAmount())) maxExp = e;
+            if (Math.abs(e.getSignedAmount()) < Math.abs(minExp.getSignedAmount())) minExp = e;
         }
 
         System.out.printf("%nBÁO CÁO CHI TIẾT THÁNG %d/%d%n", month, year);
@@ -457,13 +444,14 @@ public class ExpenseManager {
         System.out.printf("Đã đặt ngân sách tối đa cho '%s' là %,.0f VND (%s).%n", category.getName(), limit, period);
     }
 
-    /**
-     * Tìm khoản chi lớn nhất.
-     * 
-     * @return Transaction có amount lớn nhất trong danh sách chi tiêu
-     */
-    public Transaction findLargestExpense() {
-        Transaction largest = null;
+    private void checkBudgetWarning(Transaction currentTx) {
+        Category category = currentTx.getCategory();
+        if (!budgets.containsKey(category)) return;
+
+        Budget budget = budgets.get(category);
+        double spent = 0;
+        LocalDate targetDate = currentTx.getDate();
+
         for (Transaction t : transactions) {
             if (t.getCategory().equals(category) && t.getSignedAmount() < 0) {
                 LocalDate txDate = t.getDate();
@@ -501,28 +489,17 @@ public class ExpenseManager {
 
             String periodStr;
             switch (budget.getPeriod()) {
-                case DAILY:
-                    periodStr = "Ngày";
-                    break;
-                case WEEKLY:
-                    periodStr = "Tuần";
-                    break;
-                case MONTHLY:
-                    periodStr = "Tháng";
-                    break;
-                case YEARLY:
-                    periodStr = "Năm";
-                    break;
-                default:
-                    periodStr = budget.getPeriod().name();
+                case DAILY: periodStr = "Ngày"; break;
+                case WEEKLY: periodStr = "Tuần"; break;
+                case MONTHLY: periodStr = "Tháng"; break;
+                case YEARLY: periodStr = "Năm"; break;
+                default: periodStr = budget.getPeriod().name();
             }
 
             System.out.printf("Ngân sách (%s): %,.0f | Đã tiêu: %,.0f (Vượt quá %,.0f VND)%n",
                     periodStr, budget.getLimit(), spent, (spent - budget.getLimit()));
         }
     }
-
-    // ======================== RECURRING TRANSACTIONS ========================
 
     // ======================== RECURRING TRANSACTIONS ========================
 
@@ -580,7 +557,8 @@ public class ExpenseManager {
                 dueDate,
                 recurring.getCategory(),
                 recurring.getWallet(),
-                recurring.getPaymentMethod());
+                recurring.getPaymentMethod()
+        );
 
         // Thử thêm giao dịch (bao gồm kiểm tra số dư)
         addTransaction(newExpense);
@@ -608,100 +586,49 @@ public class ExpenseManager {
     public void searchById(String keyword) {
         List<Transaction> results = new ArrayList<>();
         for (Transaction t : transactions) {
-            if (t instanceof RecurringExpense) {
-                result.add((RecurringExpense) t);
+            if (t.getId().toLowerCase().contains(keyword.toLowerCase())) {
+                results.add(t);
             }
         }
-        return result;
+        displaySearchResults(results);
     }
 
-    /**
-     * Kiểm tra và hiển thị các giao dịch định kỳ đến hạn.
-     * 
-     * @return danh sách giao dịch định kỳ đến hạn hôm nay
-     */
-    public List<RecurringExpense> checkDueRecurring() {
-        List<RecurringExpense> dueList = new ArrayList<>();
-        for (RecurringExpense re : getRecurringExpenses()) {
-            if (re.isDue()) {
-                dueList.add(re);
-            }
-        }
-        return dueList;
-    }
-
-    /**
-     * Tạo giao dịch mới từ giao dịch định kỳ đến hạn.
-     */
-    public Expense createFromRecurring(RecurringExpense recurring) {
-        String newId = recurring.getId() + "_" + LocalDate.now().toString();
-        return new Expense(newId, recurring.getAmount(), recurring.getNote(),
-                LocalDate.now(), recurring.getCategory(), recurring.getWallet(),
-                recurring.getPaymentMethod());
-    }
-
-    // ========== HELPER: Tính tổng chi tiêu theo danh mục trong tháng hiện tại
-    // ==========
-
-    /**
-     * Tính tổng chi tiêu của một danh mục trong tháng hiện tại.
-     */
-    private double calculateMonthlySpentByCategory(Category category) {
-        double total = 0;
-        LocalDate now = LocalDate.now();
-        int currentMonth = now.getMonthValue();
-        int currentYear = now.getYear();
-
+    public void searchByCategory(String keyword) {
+        List<Transaction> results = new ArrayList<>();
         for (Transaction t : transactions) {
-            if (t.getType() == TransactionType.EXPENSE
-                    && t.getCategory().getName().equalsIgnoreCase(category.getName())
-                    && t.getDate().getMonthValue() == currentMonth
-                    && t.getDate().getYear() == currentYear) {
-                total += t.getAmount();
+            if (t.getCategory().getName().toLowerCase().contains(keyword.toLowerCase())) {
+                results.add(t);
             }
         }
-        return total;
+        displaySearchResults(results);
     }
 
-    // ========== GETTERS ==========
-
-    public List<Transaction> getTransactions() {
-        return transactions;
-    }
-
-    public List<Wallet> getWallets() {
-        return wallets;
-    }
-
-    public List<Category> getCategories() {
-        return categories;
-    }
-
-    public Map<String, Budget> getBudgets() {
-        return budgets;
-    }
-
-    /**
-     * Nhập dữ liệu đã load từ CSV vào manager.
-     * Hợp nhất (merge) Category và Wallet — nếu đã tồn tại thì dùng lại, không tạo
-     * trùng.
-     */
-    public void importTransactions(List<Transaction> loadedTransactions) {
-        for (Transaction t : loadedTransactions) {
-            // Hợp nhất Category
-            Category existingCat = getCategoryByName(t.getCategory().getName());
-            if (existingCat == null) {
-                addCategory(t.getCategory());
-            }
-
-            // Hợp nhất Wallet
-            Wallet existingWallet = getWalletByName(t.getWallet().getName());
-            if (existingWallet == null) {
-                wallets.add(t.getWallet());
-            }
-
-            // Thêm transaction (không cập nhật số dư vì đây là dữ liệu đã lưu)
-            transactions.add(t);
+    public void searchByDate(LocalDate date) {
+        List<Transaction> results = new ArrayList<>();
+        for (Transaction t : transactions) {
+            if (t.getDate().isEqual(date)) results.add(t);
         }
+        displaySearchResults(results);
+    }
+
+    public void searchByMonthYear(int month, int year) {
+        List<Transaction> results = new ArrayList<>();
+        for (Transaction t : transactions) {
+            if ((month == 0 || t.getDate().getMonthValue() == month) && t.getDate().getYear() == year) {
+                results.add(t);
+            }
+        }
+        displaySearchResults(results);
+    }
+
+    public void searchByAmountRange(double min, double max) {
+        List<Transaction> results = new ArrayList<>();
+        for (Transaction t : transactions) {
+            double actualAmount = Math.abs(t.getSignedAmount());
+            if (actualAmount >= min && actualAmount <= max) {
+                results.add(t);
+            }
+        }
+        displaySearchResults(results);
     }
 }

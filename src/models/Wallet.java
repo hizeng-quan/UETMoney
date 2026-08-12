@@ -1,6 +1,7 @@
 package models;
 
 import enums.WalletType;
+import exception.InsufficientBalanceException;
 
 public abstract class Wallet {
     protected String name;
@@ -17,11 +18,11 @@ public abstract class Wallet {
         }
     }
 
-    public void withdraw(double amount) {
+    public void withdraw(double amount) throws InsufficientBalanceException {
         if (amount > 0 && this.balance >= amount) {
             this.balance -= amount;
         } else {
-            System.out.println("Lỗi: Số dư của bạn không đủ!");
+            throw new InsufficientBalanceException("Số dư của bạn không đủ!");
         }
     }
 

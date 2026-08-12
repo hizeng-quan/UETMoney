@@ -1,6 +1,7 @@
 package models;
 
 import enums.WalletType;
+import exception.InsufficientBalanceException;
 
 public class BankAccount extends Wallet {
     private String bankName;
