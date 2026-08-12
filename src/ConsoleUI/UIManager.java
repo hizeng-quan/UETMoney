@@ -621,10 +621,9 @@ public class UIManager {
         }
 
         System.out.println("\n DANH SÁCH GIAO DỊCH ĐỊNH KỲ (" + recurring.size() + " giao dịch)");
-        System.out.println("═══════════════════════════════════════");
         for (RecurringExpense re : recurring) {
             re.printInfo();
-            System.out.printf("   Trạng thái: %s%n", re.isDue() ? "⚠ ĐÃ ĐẾN HẠN" : "✓ Chưa đến hạn");
+            System.out.printf("   Trạng thái: %s%n", re.isDue() ? "ĐÃ ĐẾN HẠN" : "Chưa đến hạn");
             System.out.println("---");
         }
 
@@ -638,12 +637,11 @@ public class UIManager {
     private void displayDueRecurring() {
         List<RecurringExpense> dueList = manager.getDueRecurringExpenses();
         if (dueList.isEmpty()) {
-            System.out.println("\n✓ Không có giao dịch định kỳ nào đến hạn.");
+            System.out.println("\n Không có giao dịch định kỳ nào đến hạn.");
             return;
         }
 
-        System.out.println("\n⚠ CÁC GIAO DỊCH ĐỊNH KỲ ĐẾN HẠN (" + dueList.size() + " giao dịch)");
-        System.out.println("═══════════════════════════════════════");
+        System.out.println("\n CÁC GIAO DỊCH ĐỊNH KỲ ĐẾN HẠN (" + dueList.size() + " giao dịch)");
         for (RecurringExpense re : dueList) {
             re.printInfo();
             System.out.println("---");
@@ -664,7 +662,6 @@ public class UIManager {
         }
 
         System.out.println("\n CÁC GIAO DỊCH ĐẾN HẠN CẦN XỬ LÝ:");
-        System.out.println("═══════════════════════════════════════");
 
         int processed = 0;
         for (RecurringExpense re : dueList) {
@@ -675,11 +672,11 @@ public class UIManager {
             if (confirm.equalsIgnoreCase("y")) {
                 Expense newTx = manager.generateRecurringTransaction(re);
                 if (newTx != null) {
-                    System.out.println("✓ Đã tạo giao dịch: " + newTx.getId());
+                    System.out.println("Đã tạo giao dịch: " + newTx.getId());
                     processed++;
                 }
             } else {
-                System.out.println("→ Bỏ qua giao dịch " + re.getId());
+                System.out.println("Bỏ qua giao dịch " + re.getId());
             }
             System.out.println("---");
         }
@@ -695,14 +692,11 @@ public class UIManager {
         List<RecurringExpense> dueList = manager.getDueRecurringExpenses();
         if (dueList.isEmpty()) return;
 
-        System.out.println("\n════════════════════════════════════════");
-        System.out.println("⚠ NHẮC NHỞ: Có " + dueList.size() + " giao dịch định kỳ ĐÃ ĐẾN HẠN!");
-        System.out.println("════════════════════════════════════════");
+        System.out.println(" NHẮC NHỞ: Có " + dueList.size() + " giao dịch định kỳ ĐÃ ĐẾN HẠN!");
         for (RecurringExpense re : dueList) {
             System.out.printf("  • %s | %s | %,.0f VND | Hạn: %s%n",
                     re.getId(), re.getCategory().getName(), re.getAmount(), re.nextDueDate());
         }
-        System.out.println("→ Vào mục [11] Quản lý giao dịch định kỳ để xử lý.");
-        System.out.println("════════════════════════════════════════\n");
+        System.out.println(" Vào mục [11] Quản lý giao dịch định kỳ để xử lý.");
     }
 }
