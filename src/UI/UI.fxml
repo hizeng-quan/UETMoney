@@ -195,6 +195,7 @@
                                     <columns>
                                         <TableColumn fx:id="colBudgetCategory" prefWidth="150.0" text="Danh Mục" />
                                         <TableColumn fx:id="colBudgetLimit" prefWidth="150.0" text="Hạn Mức" />
+                                        <TableColumn fx:id="colBudgetSpent" prefWidth="150.0" text="Đã Chi" />
                                         <TableColumn fx:id="colBudgetPeriod" prefWidth="120.0" text="Chu Kỳ" />
                                         <TableColumn fx:id="colBudgetStatus" prefWidth="180.0" text="Trạng Thái Vượt Mức" />
                                     </columns>
