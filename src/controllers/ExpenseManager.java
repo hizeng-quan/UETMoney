@@ -256,6 +256,68 @@ public class ExpenseManager {
         }
     }
 
+    public void updateTransaction(String id, Transaction newTx) throws InsufficientBalanceException {
+        Transaction target = null;
+        for (Transaction t : transactions) {
+            if (t.getId().equals(id)) {
+                target = t;
+                break;
+            }
+        }
+        if (target == null) {
+            throw new IllegalArgumentException("Không tìm thấy giao dịch để cập nhật!");
+        }
+
+        Wallet oldWallet = target.getWallet();
+        Wallet newWallet = newTx.getWallet();
+
+        // Kiểm tra khả năng hoàn tác giao dịch cũ
+        if (target.getType() == TransactionType.INCOME) {
+            if (oldWallet.getBalance() < target.getAmount()) {
+                throw new InsufficientBalanceException("Không đủ số dư trong ví '" + oldWallet.getName() + "' để hoàn tác giao dịch thu này!");
+            }
+        }
+
+        // Kiểm tra khả năng áp dụng giao dịch mới
+        if (newTx.getType() == TransactionType.EXPENSE) {
+            double simulatedBalance = newWallet.getBalance();
+            if (oldWallet.equals(newWallet)) {
+                if (target.getType() == TransactionType.INCOME) {
+                    simulatedBalance -= target.getAmount();
+                } else {
+                    simulatedBalance += target.getAmount();
+                }
+            }
+            if (simulatedBalance < newTx.getAmount()) {
+                throw new InsufficientBalanceException("Không đủ số dư trong ví '" + newWallet.getName() + "' để thực hiện mức chi tiêu mới!");
+            }
+        }
+
+        // 1. Hoàn tác giao dịch cũ
+        if (target.getType() == TransactionType.INCOME) {
+            oldWallet.withdraw(target.getAmount());
+        } else {
+            oldWallet.deposit(target.getAmount());
+        }
+
+        // 2. Áp dụng giao dịch mới
+        if (newTx.getType() == TransactionType.INCOME) {
+            newWallet.deposit(newTx.getAmount());
+        } else {
+            newWallet.withdraw(newTx.getAmount());
+        }
+
+        // 3. Cập nhật trong danh sách
+        int index = transactions.indexOf(target);
+        transactions.set(index, newTx);
+
+        System.out.println("Đã cập nhật giao dịch " + id);
+
+        if (newTx.getType() == TransactionType.EXPENSE) {
+            checkBudgetWarning(newTx.getCategory());
+        }
+    }
+
     public void removeWallet(Wallet wallet) throws InsufficientBalanceException {
         for (Transaction t : transactions) {
             if (t.getWallet() == wallet) {
