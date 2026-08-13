@@ -438,6 +438,7 @@ public class ControlUI implements Initializable {
     private void setupActions() {
         // Giao Dịch
         btnAddTransaction.setOnAction(e -> handleAddTransaction());
+        btnUpdateTransaction.setOnAction(e -> handleUpdateTransaction());
         btnDeleteTransaction.setOnAction(e -> handleDeleteTransaction());
         btnSearch.setOnAction(e -> handleSearchTransaction());
         btnClearSearch.setOnAction(e -> handleClearSearch());
@@ -565,6 +566,71 @@ public class ControlUI implements Initializable {
             showAlert(Alert.AlertType.ERROR, "Lỗi số dư", "Giao dịch thất bại: " + e.getMessage());
         } catch (NumberFormatException e) {
             showAlert(Alert.AlertType.ERROR, "Lỗi nhập liệu", "Số tiền phải là một số hợp lệ!");
+        }
+    }
+
+    private void handleUpdateTransaction() {
+        Transaction selected = tblTransactions.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showAlert(Alert.AlertType.WARNING, "Cảnh báo", "Vui lòng chọn giao dịch cần sửa!");
+            return;
+        }
+
+        try {
+            if (txtAmount.getText().trim().isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "Cảnh báo", "Vui lòng nhập số tiền!");
+                return;
+            }
+
+            double amount = Double.parseDouble(txtAmount.getText().trim());
+            LocalDate date = dpDate.getValue();
+            Category category = cbCategory.getValue();
+            Wallet wallet = cbWallet.getValue();
+            String note = txtNote.getText().trim();
+            Period period = cbPeriod.getValue();
+
+            if (category == null || wallet == null || date == null) {
+                showAlert(Alert.AlertType.WARNING, "Cảnh báo", "Vui lòng chọn đầy đủ Ví, Danh mục và Ngày!");
+                return;
+            }
+
+            String id = selected.getId();
+            Transaction newT;
+
+            String source = category.getName();
+            String paymentMethod;
+            if (wallet instanceof BankAccount) {
+                paymentMethod = "Chuyển khoản - " + ((BankAccount) wallet).getBankName();
+            } else if (wallet instanceof EWallet) {
+                paymentMethod = ((EWallet) wallet).getProvider();
+            } else {
+                paymentMethod = "Tiền mặt";
+            }
+
+            if (category.getType() == TransactionType.INCOME) {
+                newT = new Income(id, amount, date, category, note, wallet, source);
+            } else {
+                if (period != null) {
+                    newT = new RecurringExpense(id, amount, note, date, category, wallet, paymentMethod, period);
+                } else {
+                    newT = new Expense(id, amount, note, date, category, wallet, paymentMethod);
+                }
+            }
+
+            // Gọi hàm cập nhật từ Manager
+            expenseManager.updateTransaction(id, newT);
+
+            // Xóa trắng form & Cập nhật UI
+            refreshAllViews();
+            clearTransactionForm();
+            showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đã cập nhật giao dịch thành công!");
+
+        } catch (InsufficientBalanceException e) {
+            showAlert(Alert.AlertType.ERROR, "Lỗi số dư", "Cập nhật thất bại: " + e.getMessage());
+        } catch (NumberFormatException e) {
+            showAlert(Alert.AlertType.ERROR, "Lỗi nhập liệu", "Số tiền phải là một số hợp lệ!");
+        } catch (IllegalArgumentException e) {
+            showAlert(Alert.AlertType.ERROR, "Lỗi", e.getMessage());
         }
     }
 
