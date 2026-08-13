@@ -3,8 +3,19 @@ package models;
 import enums.TransactionType;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 public abstract class Transaction {
+    public static String generateId(Category category, LocalDate date) {
+        String typePrefix = category.getType() == TransactionType.INCOME ? "IN" : "EX";
+        String datePart = date.format(DateTimeFormatter.ofPattern("ddMM"));
+        String catName = category.getName().replaceAll("\\s+", "").toUpperCase();
+        String catPart = catName.length() >= 3 ? catName.substring(0, 3) : catName;
+        int randomPart = (int) (Math.random() * 9000) + 1000;
+        return String.format("%s-%s-%s-%d", typePrefix, datePart, catPart, randomPart);
+    }
+
+
     protected String id;
     protected double amount;
     protected LocalDate date;
