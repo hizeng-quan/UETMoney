@@ -85,6 +85,9 @@ public class ExpenseManager {
             transactions = storage.loadTransactions(TRANSACTIONS_FILE + ext, categories, wallets);
             System.out.println("Đã nạp " + transactions.size() + " giao dịch.");
 
+            // 5. Tự động xử lý các giao dịch định kỳ đã đến hạn
+            processDueRecurringExpenses();
+
         } catch (Exception e) {
             System.out.println("Lỗi khi nạp dữ liệu: " + e.getMessage());
             System.out.println("Chương trình sẽ khởi động với dữ liệu rỗng.");
@@ -754,11 +757,7 @@ public class ExpenseManager {
         LocalDate dueDate = recurring.nextDueDate();
 
         // Tạo ID mới cho giao dịch
-        String newId = String.format("CHI-AUTO-%s-%s-%d",
-                dueDate.format(java.time.format.DateTimeFormatter.ofPattern("ddMM")),
-                recurring.getCategory().getName().replaceAll("\\s+", "").toUpperCase().substring(0,
-                        Math.min(3, recurring.getCategory().getName().length())),
-                (int) (Math.random() * 9000) + 1000);
+        String newId = Transaction.generateId(recurring.getCategory(), dueDate);
 
         // Tạo Expense thông thường từ recurring template
         Expense newExpense = new Expense(
@@ -797,6 +796,31 @@ public class ExpenseManager {
                 wallets.add(t.getWallet());
             }
             transactions.add(t);
+        }
+    }
+
+    /**
+     * Tự động xử lý các giao dịch định kỳ đã đến hạn.
+     */
+    public void processDueRecurringExpenses() {
+        List<RecurringExpense> dueList = getDueRecurringExpenses();
+        if (dueList.isEmpty()) return;
+
+        int count = 0;
+        for (RecurringExpense re : dueList) {
+            while (re.isDue()) {
+                Expense newExp = generateRecurringTransaction(re);
+                if (newExp != null) {
+                    count++;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        if (count > 0) {
+            System.out.println("Đã tự động tạo " + count + " giao dịch từ các khoản định kỳ đến hạn.");
+            saveAllData(); // Lưu lại ngay để tránh tạo lặp nếu đóng app
         }
     }
 

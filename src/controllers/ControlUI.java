@@ -524,12 +524,7 @@ public class ControlUI implements Initializable {
                 return;
             }
 
-            String datePart = date.format(DateTimeFormatter.ofPattern("ddMM"));
-            String catName = category.getName().replaceAll("\\s+", "").toUpperCase();
-            String catPart = catName.length() >= 3 ? catName.substring(0, 3) : catName;
-            int randomPart = (int) (Math.random() * 9000) + 1000;
-            String id = category.getType().toString().substring(0, 2) + "-" + datePart + "-"
-                    + catPart + "-" + randomPart;
+            String id = Transaction.generateId(category, date);
             Transaction t;
 
             String source = category.getName();

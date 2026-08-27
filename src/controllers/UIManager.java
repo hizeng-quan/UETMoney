@@ -97,7 +97,7 @@ public class UIManager {
                             System.out.print("6. Nguồn thu: ");
                             source = getInput();
 
-                            String autoId = generateTransactionId("THU", date, category);
+                            String autoId = Transaction.generateId(category, date);
                             Transaction income = new Income(autoId, amount, date, category, note, wallet, source);
                             manager.addTransaction(income);
 
@@ -115,7 +115,7 @@ public class UIManager {
                         String isRecurring = getInput();
 
                         if (isRecurring.equalsIgnoreCase("n")) {
-                            String autoId = generateTransactionId("CHI", date, category);
+                            String autoId = Transaction.generateId(category, date);
                             Transaction expense = new Expense(autoId, amount, note, date, category, wallet, paymentMethod);
 
                             manager.addTransaction(expense); // Có thể quăng InsufficientBalanceException
@@ -140,7 +140,7 @@ public class UIManager {
                         };
 
                         if (periodEnum != null) {
-                            String autoId = generateTransactionId("CHI", date, category);
+                            String autoId = Transaction.generateId(category, date);
                             Transaction recExpense = new RecurringExpense(autoId, amount, note, date, category, wallet, paymentMethod, periodEnum);
 
                             manager.addTransaction(recExpense); // Có thể quăng InsufficientBalanceException
@@ -170,14 +170,7 @@ public class UIManager {
         }
     }
 
-    private static String generateTransactionId(String typePrefix, LocalDate date, Category category) {
-        String datePart = date.format(DateTimeFormatter.ofPattern("ddMM"));
-        String catName = category.getName().replaceAll("\\s+", "").toUpperCase();
-        String catPart = catName.length() >= 3 ? catName.substring(0, 3) : catName;
-        int randomPart = (int) (Math.random() * 9000) + 1000;
 
-        return String.format("%s-%s-%s-%d", typePrefix, datePart, catPart, randomPart);
-    }
 
     // CASE 6: THÊM VÍ
     public void addWalletUI() {

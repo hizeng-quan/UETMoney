@@ -22,30 +22,24 @@ public class RecurringExpense extends Expense {
     }
 
     /**
-     * Tính ngày đáo hạn tiếp theo dựa trên ngày giao dịch gốc và chu kỳ.
-     * @return ngày đáo hạn kế tiếp kể từ hôm nay
+     * Tính ngày đáo hạn tiếp theo dựa trên ngày giao dịch gốc và chu kỳ (hoặc lần xử lý cuối cùng).
+     * @return ngày đáo hạn kế tiếp kể từ lần xử lý cuối cùng (hoặc ngày gốc)
      */
     public LocalDate nextDueDate() {
-        LocalDate next = this.getDate();
-        LocalDate today = LocalDate.now();
-
-        while (!next.isAfter(today)) {
-            switch (period) {
-                case DAILY:
-                    next = next.plusDays(1);
-                    break;
-                case WEEKLY:
-                    next = next.plusWeeks(1);
-                    break;
-                case MONTHLY:
-                    next = next.plusMonths(1);
-                    break;
-                case YEARLY:
-                    next = next.plusYears(1);
-                    break;
-            }
+        LocalDate baseDate = (lastProcessedDate != null) ? lastProcessedDate : this.getDate();
+        
+        switch (period) {
+            case DAILY:
+                return baseDate.plusDays(1);
+            case WEEKLY:
+                return baseDate.plusWeeks(1);
+            case MONTHLY:
+                return baseDate.plusMonths(1);
+            case YEARLY:
+                return baseDate.plusYears(1);
+            default:
+                return baseDate;
         }
-        return next;
     }
 
     /**
@@ -53,27 +47,7 @@ public class RecurringExpense extends Expense {
      * @return true nếu ngày đáo hạn tiếp theo <= hôm nay
      */
     public boolean isDue() {
-        LocalDate next = this.getDate();
-        LocalDate today = LocalDate.now();
-
-        // Nếu ngày gốc đã qua, kiểm tra xem có kỳ mới đến hạn không
-        while (next.isBefore(today)) {
-            switch (period) {
-                case DAILY:
-                    next = next.plusDays(1);
-                    break;
-                case WEEKLY:
-                    next = next.plusWeeks(1);
-                    break;
-                case MONTHLY:
-                    next = next.plusMonths(1);
-                    break;
-                case YEARLY:
-                    next = next.plusYears(1);
-                    break;
-            }
-        }
-        return next.isEqual(today);
+        return !nextDueDate().isAfter(LocalDate.now());
     }
 
     @Override
